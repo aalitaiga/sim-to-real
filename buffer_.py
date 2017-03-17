@@ -13,6 +13,9 @@ class FIFO(object):
         self.queue = list()
         self.max_len = max_len
 
+    def __len__(self):
+        return len(self.queue)
+
     def push(self, elem):
         self.queue.append(elem)
         self.queue = self.queue[-self.max_len:]
@@ -51,7 +54,7 @@ actions, and rewards.
 
         # Allocate the circular buffers and indices.
         self.observations = np.zeros((max_steps, history, observation_dim), dtype=floatX)
-        self.actions = np.zeros((max_steps, history, action_dim), dtype=floatX)
+        self.actions = np.zeros((max_steps, history+1, action_dim), dtype=floatX)
         self.s_transition = np.zeros((max_steps, observation_dim), dtype=floatX)
         self.r_transition = np.zeros((max_steps, observation_dim), dtype=floatX)
         self.s_rewards = np.zeros(max_steps, dtype=floatX)
@@ -102,7 +105,7 @@ batch_size randomly chosen state transitions.
         """
         # Allocate the response.
         observations = np.zeros((batch_size, self.history, self.observation_dim),dtype=floatX)
-        actions = np.zeros((batch_size, self.action_dim), dtype=floatX)
+        actions = np.zeros((batch_size, self.history+1, self.action_dim), dtype=floatX)
         s_transition = np.zeros((batch_size, self.observation_dim),dtype=floatX)
         r_transition = np.zeros((batch_size, self.observation_dim),dtype=floatX)
         s_rewards = np.zeros((batch_size, 1), dtype=floatX)
@@ -129,12 +132,12 @@ batch_size randomly chosen state transitions.
     def save(self, path=None):
         """ Save the current data to disk """
         path = path or '/Tmp/alitaiga/sim-to-real/buffer-test'
-        with file(path, 'w+') as f:
+        with open(path, 'wb+') as f:
             pickle.dump(self.__dict__, f, pickle.HIGHEST_PROTOCOL)
 
     @classmethod
     def load(cls, path):
         buf = cls(0,0,0)
-        with file(path, 'r') as f:
+        with open(path, 'rb') as f:
             buf.__dict__ = pickle.load(f)
         return buf

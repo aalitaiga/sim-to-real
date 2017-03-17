@@ -48,13 +48,12 @@ class GAN(Initializable, Random):
         y_tilde = self.generator.apply(x)
         pred_real, pred_fake = self.get_predictions(x, y, y_tilde)
 
-        discriminator_loss = (Softplus().apply(-pred_real) +
-                              Softplus().apply(pred_fake)).mean()
-        generator_loss = Softplus().apply(-pred_fake).mean()
+        discriminator_loss = (T.nnet.softplus(-pred_real) +
+                              T.nnet.softplus(pred_fake)).mean()
+        generator_loss = T.nnet.softplus(-pred_fake).mean()
         return discriminator_loss, generator_loss
 
-    def algorithm(self, x, discriminator_step_rule, generator_step_rule):
-        discriminator_loss, generator_loss = self.compute_losses(x)
+    def algorithm(self, discriminator_loss, generator_loss, discriminator_step_rule, generator_step_rule):
         discriminator_parameters = self.discriminator_parameters
         generator_parameters = self.generator_parameters
 
