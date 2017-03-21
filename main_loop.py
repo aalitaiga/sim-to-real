@@ -10,7 +10,7 @@ from blocks.utils.profile import Profile, Timer
 from blocks.algorithms import GradientDescent
 from blocks.extensions import CallbackName
 from blocks.model import Model
-# from blocks.main_loop import MainLoop
+from rllab.envs.normalized_env import NormalizedEnv
 
 from buffer_ import FIFO
 
@@ -46,10 +46,11 @@ no_model_message = """
 A possible reason: one of your extensions requires the main loop to have \
 a model. Check documentation of your extensions."""
 
+
 class RLMainLoop(object):
     """ MainLoop better suited to do RL """
 
-    def __init__(self, algorithm, env, env2, buffer_=None, model=None, log=None,
+    def __init__(self, algorithm, d, model=None, log=None,
                 log_backend=None, extensions=None, render=True):
         if log is None:
             if log_backend is None:
@@ -58,17 +59,21 @@ class RLMainLoop(object):
         if extensions is None:
             extensions = []
 
-        self.env = env
-        self.env2 = env2
-        self.observation_dim = int(env.observation_space.shape[0])
-        self.action_dim = int(env.action_space.shape[0])
-        self.buffer = buffer_
+        self.env = d["env"]
+        self.env2 = d["env2"]
+        self.observation_dim = int(self.env.observation_space.shape[0])
+        self.action_dim = int(self.env.action_space.shape[0])
+        self.buffer = d["buffer_"]
+        self.history = d["history"]
+        self.render = d["render"]
+        self.episode_len = d["episode_len"]
+        self.trajectory_len = d["trajectory_len"]
+
         self.algorithm = algorithm
         self.log = log
         self.extensions = extensions
 
         self.profile = Profile()
-        self.render = render
 
         self._model = model
 
@@ -85,18 +90,22 @@ class RLMainLoop(object):
         return self._model
 
     @property
-    def iteration_state(self):
-        """Quick access to the (data stream, epoch iterator) pair."""
-        return (self.data_stream, self.epoch_iterator)
-
-    @iteration_state.setter
-    def iteration_state(self, value):
-        (self.data_stream, self.epoch_iterator) = value
-
-    @property
     def status(self):
         """A shortcut for `self.log.status`."""
         return self.log.status
+
+    def _match_env(self):
+        # make env1 state match env2 state (simulator matches real world)
+        if isinstance(self.env, NormalizedEnv):
+            self.env.wrapped_env.env.env.set_state(
+                self.env2.wrapped_env.env.env.model.data.qpos.ravel(),
+                self.env2.wrapped_env.env.env.model.data.qvel.ravel()
+            )
+        else:
+            self.env.env.set_state(
+                self.env2.env.model.data.qpos.ravel(),
+                self.env2.env.model.data.qvel.ravel()
+            )
 
     def run(self):
         """Starts the main loop.
@@ -143,7 +152,7 @@ class RLMainLoop(object):
                     self.status['epoch_interrupt_received'] = False
                     self.status['batch_interrupt_received'] = False
                 with Timer('training', self.profile):
-                    while self._run_epoch():
+                    while self._run_episode():
                         pass
             except TrainingFinish:
                 self.log.current_row['training_finished'] = True
@@ -184,17 +193,15 @@ class RLMainLoop(object):
     def _run_episode(self):
         # Here one epoch is an episode
         if not self.status.get('epoch_started', False):
-            try:
-                self.log.status['received_first_batch'] = False
-                self.epoch_iterator = (self.data_stream.
-                                       get_epoch_iterator(as_dict=True))
-            except StopIteration:
-                return False
+            self.log.status['received_first_batch'] = False
+            # return False
             self.status['epoch_started'] = True
             self._run_extensions('before_epoch')
         with Timer('epoch', self.profile):
-            for _ in  self,episode_len:
-                self._run_trajectory():
+            for _ in range(self.episode_len):
+                self.env.reset()
+                self.env2.reset()
+                self._run_trajectory()
         self.status['epoch_started'] = False
         self.status['epochs_done'] += 1
         # Log might not allow mutating objects, so use += instead of append
@@ -206,25 +213,35 @@ class RLMainLoop(object):
     def _run_trajectory(self):
         # Here one iteration is a trajectory
         self.log.status['received_first_batch'] = True
-        self._run_extensions('before_batch', batch)
-        prev_observations = FIFO(history)
-        actions = FIFO(history+1)
+        prev_observations = FIFO(self.history)
+        actions = FIFO(self.history+1)
         for _ in range(self.trajectory_len):
             if self.render:
                 self.env.render()
                 self.env2.render()
-            # TODO modify to use a policy
+            # TODO modify to follow a given policy and not choose random actions
             action = self.env.action_space.sample()
-            observation, reward, done, info = self.env.step(action)
-            observation2, reward2, done2, info2 = self.env2.step(action)
-            self.buffer_.add_sample(
-                prev_observations.copy(), action.copy(), observation, observation2, reward, reward2
-            )
-            batch =
-            with Timer('train', self.profile):
-                self.algorithm.process_batch(batch)
+            s_obs, s_reward, s_done, _ = self.env.step(action)
+            r_obs, r_reward, r_done, _ = self.env2.step(action)
+            actions.push(action)
+
+            if len(prev_observations) == self.history and len(actions) == self.history+1:
+                self.buffer.add_sample(
+                    prev_observations.copy(), actions.copy(), s_obs, r_obs, s_reward, r_reward
+                )
+                batch = {
+                    'actions': actions.copy(),
+                    'previous_obs': prev_observations.copy(),
+                    'observation_sim': s_obs,
+                    'observation_real': r_obs
+                }
+                self._run_extensions('before_batch', batch)
+                with Timer('train', self.profile):
+                    self.algorithm.process_batch(batch)
+                self._run_extensions('after_batch', batch)
+            prev_observations.push(r_obs)
+            self._match_env()
         self.status['iterations_done'] += 1
-        self._run_extensions('after_batch', batch)
         self._check_finish_training('batch')
         return False
 
