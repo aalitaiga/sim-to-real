@@ -31,7 +31,8 @@ class Buffer(object):
 actions, and rewards.
 
     """
-    def __init__(self, observation_dim, action_dim, rng, history=2, max_steps=1000):
+    def __init__(self, observation_dim, action_dim,
+            rng, history=2, max_steps=1000, keep_history=True):
         """Construct a DataSet.
 
         Arguments:
@@ -49,12 +50,13 @@ actions, and rewards.
         self.action_dim = action_dim
         self.max_steps = max_steps
         self.history = history
-        # self.phi_length = phi_length
+        self.keep_history = keep_history
         self.rng = rng
 
         # Allocate the circular buffers and indices.
-        self.observations = np.zeros((max_steps, history, observation_dim), dtype=floatX)
-        self.actions = np.zeros((max_steps, history+1, action_dim), dtype=floatX)
+        if keep_history:
+            self.observations = np.zeros((max_steps, history, observation_dim), dtype=floatX)
+        self.actions = np.zeros((max_steps, history, action_dim), dtype=floatX)
         self.s_transition = np.zeros((max_steps, observation_dim), dtype=floatX)
         self.r_transition = np.zeros((max_steps, observation_dim), dtype=floatX)
         self.s_rewards = np.zeros(max_steps, dtype=floatX)
@@ -66,7 +68,7 @@ actions, and rewards.
         self.top = 0
         self.size = 0
 
-    def add_sample(self, observation, action, s_transition, r_transition, s_reward, r_reward):  #, s_terminal, r_terminal):
+    def add_sample(self,  prev_observations, action, s_transition, r_transition, s_reward, r_reward):
         """Add a time step record.
 
         Arguments:
@@ -79,7 +81,7 @@ actions, and rewards.
             s_terminal -- boolean indicating whether the episode ended in the simulator
             r_terminal -- boolean indicating whether the episode ended in the real world
         """
-        self.observations[self.top] = observation
+        self.observations[self.top] = prev_observations
         self.actions[self.top] = action
         self.s_transition[self.top] = s_transition
         self.r_transition[self.top] = r_transition
@@ -100,12 +102,12 @@ actions, and rewards.
 
     def random_batch(self, batch_size):
         """Return corresponding observations, actions, rewards, and terminal status for
-batch_size randomly chosen state transitions.
+        batch_size randomly chosen state transitions.
 
         """
         # Allocate the response.
         observations = np.zeros((batch_size, self.history, self.observation_dim),dtype=floatX)
-        actions = np.zeros((batch_size, self.history+1, self.action_dim), dtype=floatX)
+        actions = np.zeros((batch_size, self.history, self.action_dim), dtype=floatX)
         s_transition = np.zeros((batch_size, self.observation_dim),dtype=floatX)
         r_transition = np.zeros((batch_size, self.observation_dim),dtype=floatX)
         s_rewards = np.zeros((batch_size, 1), dtype=floatX)

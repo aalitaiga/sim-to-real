@@ -51,7 +51,7 @@ class RLMainLoop(object):
     """ MainLoop better suited to do RL """
 
     def __init__(self, algorithm, d, model=None, log=None,
-                log_backend=None, extensions=None, render=True):
+                log_backend=None, extensions=None, render=True, generator_algo=None):
         if log is None:
             if log_backend is None:
                 log_backend = config.log_backend
@@ -63,13 +63,15 @@ class RLMainLoop(object):
         self.env2 = d["env2"]
         self.observation_dim = int(self.env.observation_space.shape[0])
         self.action_dim = int(self.env.action_space.shape[0])
-        self.buffer = d["buffer_"]
+        self.buffer = d.get("buffer_", None)
         self.history = d["history"]
-        self.render = d["render"]
+        self.render = d.get("render", True)
         self.episode_len = d["episode_len"]
         self.trajectory_len = d["trajectory_len"]
+        self.d_iter = d.get("d_iter", None)
 
         self.algorithm = algorithm
+        self.generator_algorithm = generator_algo
         self.log = log
         self.extensions = extensions
 
@@ -123,11 +125,11 @@ class RLMainLoop(object):
         self.profile.current = []
 
         # Sanity check for the most common case
-        if (self._model and isinstance(self._model, Model) and
-                isinstance(self.algorithm, GradientDescent)):
-            if not (set(self._model.get_parameter_dict().values()) ==
-                    set(self.algorithm.parameters)):
-                logger.warning("different parameters for model and algorithm")
+        # if (self._model and isinstance(self._model, Model) and
+        #         isinstance(self.algorithm, GradientDescent)):
+        #     if not (set(self._model.get_parameter_dict().values()) ==
+        #             set(self.algorithm.parameters)):
+        #         logger.warning("different parameters for model and algorithm")
 
         with change_recursion_limit(config.recursion_limit):
             self.original_sigint_handler = signal.signal(
@@ -142,6 +144,8 @@ class RLMainLoop(object):
                     self._run_extensions('before_training')
                     with Timer('initialization', self.profile):
                         self.algorithm.initialize()
+                        if self.generator_algorithm:
+                            self.generator_algorithm.initialize()
                     self.status['training_started'] = True
                 # We can not write "else:" here because extensions
                 # called "before_training" could have changed the status
@@ -201,6 +205,7 @@ class RLMainLoop(object):
             for _ in range(self.episode_len):
                 self.env.reset()
                 self.env2.reset()
+                self._match_env()
                 self._run_trajectory()
         self.status['epoch_started'] = False
         self.status['epochs_done'] += 1
@@ -214,7 +219,8 @@ class RLMainLoop(object):
         # Here one iteration is a trajectory
         self.log.status['received_first_batch'] = True
         prev_observations = FIFO(self.history)
-        actions = FIFO(self.history+1)
+        actions = FIFO(self.history)
+        d_iter_done = 0
         for _ in range(self.trajectory_len):
             if self.render:
                 self.env.render()
@@ -225,10 +231,11 @@ class RLMainLoop(object):
             r_obs, r_reward, r_done, _ = self.env2.step(action)
             actions.push(action)
 
-            if len(prev_observations) == self.history and len(actions) == self.history+1:
-                self.buffer.add_sample(
-                    prev_observations.copy(), actions.copy(), s_obs, r_obs, s_reward, r_reward
-                )
+            if len(prev_observations) == self.history and len(actions) == self.history:
+                if self.buffer:
+                    self.buffer.add_sample(
+                        prev_observations.copy(), actions.copy(), s_obs, r_obs, s_reward, r_reward
+                    )
                 batch = {
                     'actions': actions.copy(),
                     'previous_obs': prev_observations.copy(),
@@ -238,9 +245,15 @@ class RLMainLoop(object):
                 self._run_extensions('before_batch', batch)
                 with Timer('train', self.profile):
                     self.algorithm.process_batch(batch)
+                    if self.generator_algorithm and d_iter_done % self.d_iter == 0:
+                        self.generator_algorithm.process_batch(batch)
+                d_iter_done += 1
                 self._run_extensions('after_batch', batch)
             prev_observations.push(r_obs)
             self._match_env()
+
+            if r_done:
+                break
         self.status['iterations_done'] += 1
         self._check_finish_training('batch')
         return False
