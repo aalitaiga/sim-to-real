@@ -1,14 +1,12 @@
-from collections import OrderedDict
 import logging
 import numpy as np
 
-from blocks.algorithms import Adam, RMSProp, GradientDescent
+from blocks.algorithms import Adam, RMSProp
 from blocks.bricks import MLP, Tanh, Identity, LeakyRectifier
-from blocks.extensions import FinishAfter, Timing, Printing
+from blocks.extensions import FinishAfter, Printing
 from blocks.extensions.monitoring import TrainingDataMonitoring
 from blocks.extensions.saveload import Checkpoint
 from blocks.filter import VariableFilter
-from blocks.graph import ComputationGraph
 from blocks.initialization import IsotropicGaussian, Constant
 from blocks.model import Model
 from mujoco_py.mjtypes import POINTER, c_double
@@ -19,11 +17,9 @@ from rllab.envs.normalized_env import normalize
 # from rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
 # from rllab.misc.instrument import run_experiment_lite
 import theano.tensor as T
-import theano
 
 from main_loop import RLMainLoop
-
-from buffer_ import Buffer
+from buffer_ import Buffer, SaveBuffer
 from generative_model import WGAN, WeightClipping
 
 # logging.basicConfig(filename='example.log',
@@ -49,13 +45,13 @@ observation_dim = int(env.observation_space.shape[0])
 action_dim = int(env.action_space.shape[0])
 rng = np.random.RandomState(seed=23)
 max_steps = 1000000
-history = 3
+history = 1
 
 buffer_ = Buffer(observation_dim, action_dim, rng, history, max_steps)
 
 ## Defining the generative model
 input_dim = (history+1)*observation_dim + history*action_dim
-h = 256
+h = 128
 LEARNING_RATE = 1e-4
 LEARNING_RATE = 5e-5
 BETA1 = 0.5
@@ -110,22 +106,23 @@ d = {
     "buffer_": buffer_,
     "history": history,
     "render": False,
-    "episode_len": 10,
+    "episode_len": 100,
     "trajectory_len": 100,
     "d_iter": 10
 }
 
 extensions = [
     #Timing(),
-    FinishAfter(after_n_epochs=10000),
+    FinishAfter(after_n_epochs=100000),
     WeightClipping(parameters=generative_model.discriminator_parameters, after_batch=True),
     # ParameterPrint(after_batch=True),
+    SaveBuffer(buffer_, '/Tmp/alitaiga/sim-to-real/buffer-test', every_n_epochs=5),
     TrainingDataMonitoring(
         model.outputs+auxiliary_variables,
         # prefix="train",
         after_epoch=True),
-    Checkpoint('generative_model.tar', after_n_epochs=1, after_training=True,
-               use_cpickle=True),
+    # Checkpoint('generative_model.tar', after_n_epochs=1, after_training=True,
+    #            use_cpickle=True),
     Printing()
 ]
 

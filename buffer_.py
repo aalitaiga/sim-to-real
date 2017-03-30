@@ -1,8 +1,12 @@
 """This class stores all of the samples for training.  It is able to
 construct randomly selected batches of phi's from the stored history.
 """
+import math
 import pickle
 
+from blocks.extensions import SimpleExtension
+from fuel.datasets.hdf5 import H5PYDataset
+import h5py
 import numpy as np
 import theano
 
@@ -32,7 +36,7 @@ actions, and rewards.
 
     """
     def __init__(self, observation_dim, action_dim,
-            rng, history=2, max_steps=1000, keep_history=True):
+            rng, history=2, max_steps=1000):
         """Construct a DataSet.
 
         Arguments:
@@ -50,12 +54,10 @@ actions, and rewards.
         self.action_dim = action_dim
         self.max_steps = max_steps
         self.history = history
-        self.keep_history = keep_history
         self.rng = rng
 
         # Allocate the circular buffers and indices.
-        if keep_history:
-            self.observations = np.zeros((max_steps, history, observation_dim), dtype=floatX)
+        self.observations = np.zeros((max_steps, history, observation_dim), dtype=floatX)
         self.actions = np.zeros((max_steps, history, action_dim), dtype=floatX)
         self.s_transition = np.zeros((max_steps, observation_dim), dtype=floatX)
         self.r_transition = np.zeros((max_steps, observation_dim), dtype=floatX)
@@ -100,6 +102,13 @@ actions, and rewards.
         """Return an approximate count of stored state transitions."""
         return max(0, self.size)
 
+    def __bool__(self):
+        return True
+
+    @property
+    def full(self):
+        return self.size == self.max_steps
+
     def random_batch(self, batch_size):
         """Return corresponding observations, actions, rewards, and terminal status for
         batch_size randomly chosen state transitions.
@@ -135,11 +144,86 @@ actions, and rewards.
         """ Save the current data to disk """
         path = path or '/Tmp/alitaiga/sim-to-real/buffer-test'
         with open(path, 'wb+') as f:
-            pickle.dump(self.__dict__, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
 
     @classmethod
     def load(cls, path):
-        buf = cls(0,0,0)
         with open(path, 'rb') as f:
-            buf.__dict__ = pickle.load(f)
+            buf = pickle.load(f)
         return buf
+
+class SaveBuffer(SimpleExtension):
+    """ Extension to save the buffer during training """
+    def __init__(self, buffer_, path='/Tmp/alitaiga/sim-to-real/buffer-test', **kwargs):
+        self.buffer_ = buffer_
+        self.path = path
+        super(SaveBuffer, self).__init__(**kwargs)
+
+    def do(self, which_callback, *args):
+        self.buffer_.save(self.path)
+        if self.buffer_.full:
+            self.main_loop.log.current_row['training_finish_requested'] = True
+
+def buffer_to_h5(buffer_, split=0.9):
+    """ Convert a buffer object into a h5 dataset """
+    assert 0 < split <= 1
+    size_train = math.floor(buffer_.size * split)
+    size_val = math.ceil(buffer_.size * (1 - split))
+    name = '/Tmp/alitaiga/sim-to-real/data_swimmer.h5'
+
+    history = buffer_.history
+    observation_dim = buffer_.observation_dim
+    action_dim = buffer_.action_dim
+    f = h5py.File(name, mode='w')
+    observations = f.create_dataset('observations', (size_train+size_val, history, observation_dim), dtype='float32')
+    actions = f.create_dataset('actions', (size_train+size_val, history, action_dim), dtype='float32')
+    observation_sim = f.create_dataset('observation_sim', (size_train+size_val, observation_dim), dtype='float32')
+    observation_real = f.create_dataset('observation_real', (size_train+size_val, observation_dim), dtype='float32')
+    reward_sim = f.create_dataset('reward_sim', (size_train+size_val,), dtype='float32')
+    reward_real = f.create_dataset('reward_real', (size_train+size_val,), dtype='float32')
+
+    split_dict = {
+        'train': {
+            'observations': (0, size_train),
+            'actions': (0, size_train),
+            'observation_sim': (0, size_train),
+            'observation_real': (0, size_train),
+            'reward_sim': (0, size_train),
+            'reward_real': (0, size_train)
+        },
+        'valid': {
+            'observations': (size_train, size_train+size_val),
+            'actions': (size_train, size_train+size_val),
+            'observation_sim': (size_train, size_train+size_val),
+            'observation_real': (size_train, size_train+size_val),
+            'reward_sim': (size_train, size_train+size_val),
+            'reward_real': (size_train, size_train+size_val)
+        }
+    }
+    f.attrs['split'] = H5PYDataset.create_split_array(split_dict)
+
+    train_indexs = np.random.choice(buffer_.size, size_train, replace=False)
+    val_indexs = np.setdiff1d(np.arange(buffer_.size), train_indexs)
+
+    observations[:size_train, :, :] = buffer_.observations[train_indexs, :, :]
+    observations[size_train:, :, :] = buffer_.observations[val_indexs, :, :]
+    f.flush()
+    actions[:size_train, :, :] = buffer_.actions[train_indexs, :, :]
+    actions[size_train:, :, :] = buffer_.actions[val_indexs, :, :]
+    observation_sim[:size_train, :] = buffer_.s_transition[train_indexs, :]
+    observation_sim[size_train:, :] = buffer_.s_transition[val_indexs, :]
+    observation_real[:size_train, :] = buffer_.r_transition[train_indexs, :]
+    observation_real[size_train:, :] = buffer_.r_transition[val_indexs, :]
+    reward_sim[:size_train] = buffer_.s_rewards[train_indexs]
+    reward_sim[size_train:] = buffer_.s_rewards[val_indexs]
+    reward_real[:size_train] = buffer_.r_rewards[train_indexs]
+    reward_real[size_train:] = buffer_.r_rewards[val_indexs]
+    f.flush()
+    f.close()
+
+    print('Created h5 dataset {}, with {} elements'.format(name, size_train+size_val))
+    return f
+
+if __name__ == '__main__':
+    buf = Buffer.load('/Tmp/alitaiga/sim-to-real/buffer-test')
+    buffer_to_h5(buf)

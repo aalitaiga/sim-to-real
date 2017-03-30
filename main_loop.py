@@ -252,8 +252,8 @@ class RLMainLoop(object):
             prev_observations.push(r_obs)
             self._match_env()
 
-            if r_done:
-                break
+            # if r_done:
+            #     break
         self.status['iterations_done'] += 1
         self._check_finish_training('batch')
         return False
