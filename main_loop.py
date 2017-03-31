@@ -51,7 +51,7 @@ class RLMainLoop(object):
     """ MainLoop better suited to do RL """
 
     def __init__(self, algorithm, d, model=None, log=None,
-                log_backend=None, extensions=None, render=True, generator_algo=None):
+                log_backend=None, extensions=None, render=True, generator_algorithm=None):
         if log is None:
             if log_backend is None:
                 log_backend = config.log_backend
@@ -71,7 +71,7 @@ class RLMainLoop(object):
         self.d_iter = d.get("d_iter", None)
 
         self.algorithm = algorithm
-        self.generator_algorithm = generator_algo
+        self.generator_algorithm = generator_algorithm
         self.log = log
         self.extensions = extensions
 

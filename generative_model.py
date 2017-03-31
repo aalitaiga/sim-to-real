@@ -40,17 +40,17 @@ class GAN(Initializable, Random):
 
     @application(inputs=['x', 'y', 'y_tilde'], outputs=['data_preds', 'sample_preds'])
     def get_predictions(self, x, y, y_tilde, application_call):
-        input_D_real = T.concatenate([x, y])
-        input_D_fake = T.concatenate([x, y_tilde])
+        input_D_real = T.concatenate([x, y], axis=1)
+        input_D_fake = T.concatenate([x, y_tilde], axis=1)
 
         pred_real = self.discriminator.apply(input_D_real)
         pred_fake = self.discriminator.apply(input_D_fake)
 
-        # application_call.add_auxiliary_variable(
-        #     T.nnet.sigmoid(pred_real).mean(), name='data_accuracy')
-        # application_call.add_auxiliary_variable(
-        #     (1 - T.nnet.sigmoid(pred_fake)).mean(),
-        #     name='sample_accuracy')
+        application_call.add_auxiliary_variable(
+            T.nnet.sigmoid(pred_real).mean(), name='data_accuracy')
+        application_call.add_auxiliary_variable(
+            (1 - T.nnet.sigmoid(pred_fake)).mean(),
+            name='sample_accuracy')
 
         return pred_real, pred_fake
 
@@ -106,7 +106,7 @@ class WGAN(GAN):
     def losses(self, context, obs_sim, obs_real, application_call):
         # TODO: add rewards later
 
-        x_fake = T.concatenate([context, obs_sim], axis=0)
+        x_fake = T.concatenate([context, obs_sim], axis=1)
         obs_generated = self.generator.apply(x_fake)
 
         pred_real, pred_fake = self.get_predictions(context, obs_real, obs_generated)
@@ -157,89 +157,12 @@ class WGAN(GAN):
         )
         return discriminator_algo, generator_algo
 
-class WGANCompositeRule(StepRule):
-    """Chains several step rules.
-    Parameters
-    ----------
-    components : list of :class:`StepRule`
-        The learning rules to be chained. The rules will be applied in the
-        order as given.
-    """
-    def __init__(self, discriminator_rule, generator_rule, d_iter):
-        self.discriminator_rule = discriminator_rule
-        self.generator_rule = generator_rule
-        self.d_iter = theano.shared(d_iter, "d_iter")
-        add_role(self.d_iter, ALGORITHM_HYPERPARAMETER)
-        self.d_iter_done = theano.shared(0, "d_iter_done")
-        add_role(self.d_iter_done, ALGORITHM_BUFFER)
-
-    def compute_steps(self, previous_steps):
-        steps = previous_steps
-        updates = []
-        steps, more_updates = self.discriminator_rule.compute_steps(steps)
-        updates += more_updates
-
-        generator_steps, generator_updates = self.generator_rule.compute_steps(steps)
-        steps = OrderedDict((parameter, ifelse(
-            T.eq(self.d_iter_done, self.d_iter),
-            g_step,
-            step
-        )) for parameter, step, g_step in equizip(steps.keys(), steps.values(), generator_steps.values()))
-
-        more_updates = [(upd[0], ifelse(
-            T.eq(self.d_iter_done, self.d_iter),
-            upd[1],
-            upd[0]
-        )) for upd in generator_updates]
-        updates += more_updates
-
-        updates += [(self.d_iter_done, (self.d_iter_done + 1) % self.d_iter)]
-        self.d_iter_done = (self.d_iter_done + 1) % self.d_iter
-        return steps, updates
-
-class WeightClippingRule(StepRule):
-    """ Step rule used to clip the weights in the discriminator in Wasserstein GANs"""
-    def __init__(self, threshold=None):
-        if threshold is not None:
-            threshold = shared_floatx(threshold, "threshold")
-            add_role(threshold, ALGORITHM_HYPERPARAMETER)
-        self.threshold = threshold
-
-    # def compute_steps(self, previous_steps):
-    #     if self.threshold is None:
-    #         steps = previous_steps
-    #     else:
-    #         steps = OrderedDict(
-    #             (T.clip(parameter, -self.threshold, self.threshold), step)
-    #             for parameter, step in previous_steps.items())
-    #     return steps, []
-
-    def compute_step(self, parameter, previous_step):
-        updated_parameter = parameter - previous_step
-        return T.switch(updated_parameter > self.threshold,
-                        self.threshold - parameter,
-                        previous_step)
-
 class ParameterPrint(SimpleExtension):
     """ Check that parameters are indeed clipped """
     def do(self, which_callback, *args):
         gan = self.main_loop.model.top_bricks[0]
         for param in gan.discriminator_parameters:
             print(param.get_value())
-            # import ipdb; ipdb.set_trace()
-
-# class WeightClipping(SimpleExtension):
-#     """ Extension used for weight clipping in Wasserstein GANSs"""
-#
-#     def __init__(self, c=0.01, **kwargs):
-#         self.c = c
-#         super(WeightClipping, self).__init__(**kwargs)
-#
-#     def do(self, which_callback, *args):
-#         # Move this part to the computation graph to make it faster??
-#         gan = self.main_loop.model.top_bricks[0]
-#         for param in gan.discriminator_parameters:
-#             param.set_value(np.clip(param.get_value(), -self.c, self.c))
 
 class WeightClipping(SimpleExtension):
     """ Extension used for weight clipping in Wasserstein GANSs"""

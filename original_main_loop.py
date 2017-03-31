@@ -92,7 +92,7 @@ class MainLoop(object):
 
     """
     def __init__(self, algorithm, data_stream, model=None, log=None,
-                 log_backend=None, extensions=None):
+                 log_backend=None, extensions=None, generator_algorithm=None):
         if log is None:
             if log_backend is None:
                 log_backend = config.log_backend
@@ -102,6 +102,7 @@ class MainLoop(object):
 
         self.data_stream = data_stream
         self.algorithm = algorithm
+        self.generator_algorithm = generator_algorithm
         self.log = log
         self.extensions = extensions
 
@@ -170,6 +171,8 @@ class MainLoop(object):
                     self._run_extensions('before_training')
                     with Timer('initialization', self.profile):
                         self.algorithm.initialize()
+                        if self.generator_algorithm:
+                            self.generator_algorithm.initialize()
                     self.status['training_started'] = True
                 # We can not write "else:" here because extensions
                 # called "before_training" could have changed the status
@@ -251,6 +254,8 @@ class MainLoop(object):
         self._run_extensions('before_batch', batch)
         with Timer('train', self.profile):
             self.algorithm.process_batch(batch)
+            if self.generator_algorithm:
+                self.generator_algorithm.process_batch(batch)
         self.status['iterations_done'] += 1
         self._run_extensions('after_batch', batch)
         self._check_finish_training('batch')

@@ -175,7 +175,7 @@ def buffer_to_h5(buffer_, split=0.9):
     observation_dim = buffer_.observation_dim
     action_dim = buffer_.action_dim
     f = h5py.File(name, mode='w')
-    observations = f.create_dataset('observations', (size_train+size_val, history, observation_dim), dtype='float32')
+    observations = f.create_dataset('previous_obs', (size_train+size_val, history, observation_dim), dtype='float32')
     actions = f.create_dataset('actions', (size_train+size_val, history, action_dim), dtype='float32')
     observation_sim = f.create_dataset('observation_sim', (size_train+size_val, observation_dim), dtype='float32')
     observation_real = f.create_dataset('observation_real', (size_train+size_val, observation_dim), dtype='float32')
@@ -184,7 +184,7 @@ def buffer_to_h5(buffer_, split=0.9):
 
     split_dict = {
         'train': {
-            'observations': (0, size_train),
+            'previous_obs': (0, size_train),
             'actions': (0, size_train),
             'observation_sim': (0, size_train),
             'observation_real': (0, size_train),
@@ -192,7 +192,7 @@ def buffer_to_h5(buffer_, split=0.9):
             'reward_real': (0, size_train)
         },
         'valid': {
-            'observations': (size_train, size_train+size_val),
+            'previous_obs': (size_train, size_train+size_val),
             'actions': (size_train, size_train+size_val),
             'observation_sim': (size_train, size_train+size_val),
             'observation_real': (size_train, size_train+size_val),

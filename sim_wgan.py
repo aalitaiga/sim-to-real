@@ -131,7 +131,7 @@ main_loop = RLMainLoop(
     d,
     model=model,
     extensions=extensions,
-    generator_algo=generator_algo
+    generator_algorithm=generator_algo
 )
 
 main_loop.run()
