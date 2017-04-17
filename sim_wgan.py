@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import logging
 import numpy as np
 
@@ -45,7 +47,7 @@ observation_dim = int(env.observation_space.shape[0])
 action_dim = int(env.action_space.shape[0])
 rng = np.random.RandomState(seed=23)
 max_steps = 1000000
-history = 1
+history = 3
 
 buffer_ = Buffer(observation_dim, action_dim, rng, history, max_steps)
 
@@ -105,7 +107,7 @@ d = {
     "env2": env2,
     "buffer_": buffer_,
     "history": history,
-    "render": False,
+    "render": True,
     "episode_len": 100,
     "trajectory_len": 100,
     "d_iter": 10
@@ -116,7 +118,7 @@ extensions = [
     FinishAfter(after_n_epochs=100000),
     WeightClipping(parameters=generative_model.discriminator_parameters, after_batch=True),
     # ParameterPrint(after_batch=True),
-    SaveBuffer(buffer_, '/Tmp/alitaiga/sim-to-real/buffer-test', every_n_epochs=5),
+    SaveBuffer(buffer_, '/Tmp/alitaiga/sim-to-real/buffer_h3_random', every_n_epochs=5),
     TrainingDataMonitoring(
         model.outputs+auxiliary_variables,
         # prefix="train",

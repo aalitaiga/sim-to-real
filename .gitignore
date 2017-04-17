@@ -95,3 +95,6 @@ ENV/
 
 # Trained model
 *.tar
+
+# Slurm logs
+*.out

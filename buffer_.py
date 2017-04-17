@@ -8,9 +8,8 @@ from blocks.extensions import SimpleExtension
 from fuel.datasets.hdf5 import H5PYDataset
 import h5py
 import numpy as np
-import theano
 
-floatX = theano.config.floatX
+floatX = 'float32'
 
 class FIFO(object):
     def __init__(self, max_len):
@@ -161,15 +160,15 @@ class SaveBuffer(SimpleExtension):
 
     def do(self, which_callback, *args):
         self.buffer_.save(self.path)
+        print("Current buffer size: {}".format(self.buffer_.size))
         if self.buffer_.full:
             self.main_loop.log.current_row['training_finish_requested'] = True
 
-def buffer_to_h5(buffer_, split=0.9):
+def buffer_to_h5(buffer_, split=0.9, name='/Tmp/alitaiga/sim-to-real/swimmer_h3_random.h5'):
     """ Convert a buffer object into a h5 dataset """
     assert 0 < split <= 1
     size_train = math.floor(buffer_.size * split)
     size_val = math.ceil(buffer_.size * (1 - split))
-    name = '/Tmp/alitaiga/sim-to-real/data_swimmer.h5'
 
     history = buffer_.history
     observation_dim = buffer_.observation_dim

@@ -1,11 +1,13 @@
+#!/usr/bin/env python
+
 from mujoco_py.mjtypes import POINTER, c_double
 import numpy as np
-from rllab.algos.trpo import TRPO
-from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
+# from rllab.algos.trpo import TRPO
+# from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
 from rllab.envs.gym_env import GymEnv
 from rllab.envs.normalized_env import normalize
-from rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
-from rllab.misc.instrument import run_experiment_lite
+# from rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
+# from rllab.misc.instrument import run_experiment_lite
 
 from buffer_ import Buffer, FIFO
 
@@ -32,7 +34,7 @@ observation_dim = int(env.observation_space.shape[0])
 action_dim = int(env.action_space.shape[0])
 rng = np.random.RandomState(seed=23)
 max_steps = 1000000
-history = 1
+history = 2
 
 buffer_ = Buffer(observation_dim, action_dim, rng, history, max_steps)
 prev_observations = FIFO(history)
@@ -46,8 +48,8 @@ while not buffer_.full:
     prev_observations.push(observation)
 
     for t in range(100):
-        # env.render()
-        # env2.render()
+        env.render()
+        env2.render()
 
         action = env.action_space.sample()
         observation, reward, done, info = env.step(action)
@@ -57,14 +59,14 @@ while not buffer_.full:
         if len(prev_observations) == history and len(actions) == history:
             buffer_.add_sample(prev_observations.copy(), actions.copy(), observation, observation2, reward, reward2)
         prev_observations.push(observation2)
-        match_env(env, env2)
+        # match_env(env, env2)
 
         if done:
             print("Episode finished after {} timesteps".format(t+1))
             prev_observations.clear()
             actions.clear()
             break
-buffer_.save('/Tmp/alitaiga/sim-to-real/buffer-test')
+# buffer_.save('/Tmp/alitaiga/sim-to-real/buffer_simmer_h2_random')
 
 # buffer_ = Buffer.load('/Tmp/alitaiga/sim-to-real/buffer-test')
 

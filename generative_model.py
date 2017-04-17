@@ -40,8 +40,9 @@ class GAN(Initializable, Random):
 
     @application(inputs=['x', 'y', 'y_tilde'], outputs=['data_preds', 'sample_preds'])
     def get_predictions(self, x, y, y_tilde, application_call):
-        input_D_real = T.concatenate([x, y], axis=1)
-        input_D_fake = T.concatenate([x, y_tilde], axis=1)
+        axis = x.ndim - 1
+        input_D_real = T.concatenate([x, y], axis=axis)
+        input_D_fake = T.concatenate([x, y_tilde], axis=axis)
 
         pred_real = self.discriminator.apply(input_D_real)
         pred_fake = self.discriminator.apply(input_D_fake)
@@ -57,8 +58,8 @@ class GAN(Initializable, Random):
     @application(inputs=['context', 'obs_sim', 'obs_real'], outputs=['discriminator_loss', 'generator_loss'])
     def losses(self, context, obs_sim, obs_real, application_call):
         # TODO: add rewards later
-
-        x_fake = T.concatenate([context, obs_sim], axis=0)
+        axis = obs_sim.ndim - 1
+        x_fake = T.concatenate([context, obs_sim], axis=axis)
         obs_generated = self.generator.apply(x_fake)
 
         pred_real, pred_fake = self.get_predictions(context, obs_real, obs_generated)
@@ -105,8 +106,8 @@ class WGAN(GAN):
     @application(inputs=['context', 'obs_sim', 'obs_real'], outputs=['discriminator_loss', 'generator_loss'])
     def losses(self, context, obs_sim, obs_real, application_call):
         # TODO: add rewards later
-
-        x_fake = T.concatenate([context, obs_sim], axis=1)
+        axis = obs_sim.ndim - 1
+        x_fake = T.concatenate([context, obs_sim], axis=axis)
         obs_generated = self.generator.apply(x_fake)
 
         pred_real, pred_fake = self.get_predictions(context, obs_real, obs_generated)
