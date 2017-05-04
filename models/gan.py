@@ -66,8 +66,8 @@ class GAN(Initializable, Random):
 
         discriminator_loss = (T.nnet.softplus(-pred_real) +
                               T.nnet.softplus(pred_fake)).mean()
-        sqr_error = self.alpha * T.sqr(obs_real - obs_generated).mean()
-        sqr_error.name = 'squared_error'
+        sqr_error = self.alpha * T.abs(obs_real - obs_generated).mean()
+        sqr_error.name = 'abs_error'
 
         generator_loss = T.nnet.softplus(-pred_fake).mean() + sqr_error
 
