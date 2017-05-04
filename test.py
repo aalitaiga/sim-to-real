@@ -9,7 +9,7 @@ from rllab.envs.normalized_env import normalize
 # from rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
 # from rllab.misc.instrument import run_experiment_lite
 
-from buffer_ import Buffer, FIFO
+from utils.buffer_ import Buffer, FIFO
 
 ## Definiing the environnement
 coeff = 0.85

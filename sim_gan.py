@@ -19,10 +19,9 @@ from rllab.envs.normalized_env import normalize
 # from rllab.misc.instrument import run_experiment_lite
 import theano.tensor as T
 
-from main_loop import RLMainLoop
 
-from buffer_ import Buffer
-from generative_model import GAN, WeightClipping
+from utils import RLMainLoop, Buffer
+from models.gan import GAN, WeightClipping
 
 # logging.basicConfig(filename='example.log',
 #     level=logging.DEBUG,

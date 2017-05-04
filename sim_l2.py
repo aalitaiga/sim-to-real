@@ -18,10 +18,8 @@ from rllab.envs.normalized_env import normalize
 # from rllab.misc.instrument import run_experiment_lite
 import theano.tensor as T
 
-from buffer_ import Buffer, FIFO
-from main_loop import RLMainLoop
-from plotting import Plot
-
+from utils import Buffer, FIFO, RLMainLoop
+from utils.plotting import Plot
 # logging.basicConfig(filename='example.log',
 #     level=logging.DEBUG,
 #     format='%(message)s')

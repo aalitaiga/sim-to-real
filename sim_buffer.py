@@ -19,9 +19,7 @@ from rllab.envs.gym_env import GymEnv
 from rllab.envs.normalized_env import normalize
 import theano.tensor as T
 
-from buffer_ import Buffer, buffer_to_h5
-# from generative_model import WGAN, WeightClipping
-from original_main_loop import MainLoop
+from utils import Buffer, buffer_to_h5, MainLoop
 
 # logging.basicConfig(filename='example.log',
 #     level=logging.DEBUG,
@@ -31,13 +29,13 @@ from original_main_loop import MainLoop
 # logger = logging.getLogger(__name__)
 
 # env = normalize(GymEnv('Swimmer-v1', force_reset=True), normalize_obs=True)
-history = 3
+history = 2
 
 ## Defining the buffer
 buffer_ = Buffer.load('/Tmp/alitaiga/sim-to-real/buffer_swimmer_h{}_random'.format(history))
 correction_dataset = buffer_.r_transition - buffer_.s_transition
 mean = correction_dataset.mean()
-var = correction_dataset.var()
+sqr_var = np.sqrt(correction_dataset.var())
 
 observation_dim = buffer_.observation_dim
 action_dim = buffer_.action_dim
@@ -46,7 +44,7 @@ del buffer_
 del correction_dataset
 
 ## Defining the predictive model
-input_dim = (history+1)*observation_dim + history*action_dim
+input_dim = (history+1)*observation_dim + history*action_dim + observation_dim
 h = 512
 LEARNING_RATE = 5e-3
 BETA1 = 0.5
@@ -81,7 +79,7 @@ obs_real = T.matrix('observation_real', dtype='float32')
 
 # context = T.concatenate([actions_var.reshape([BATCH, -1]), obs_prev.reshape([BATCH, -1])], axis=1)
 context = T.concatenate(
-    [actions_var.reshape([BATCH, -1]), obs_prev.reshape([BATCH, -1]), obs_sim.reshape([BATCH, -1])],
+    [actions_var.reshape([BATCH, -1]), obs_prev.reshape([BATCH, -1]), obs_sim.reshape([BATCH, -1]), (obs_real - obs_sim).reshape([BATCH, -1])],
     axis=1
 )
 
@@ -116,12 +114,15 @@ predictive_model = mlp(
 )
 predictive_model.initialize()
 correction_predicted = predictive_model.apply(context)
+
 correction = obs_real - obs_sim
-correction_scaled = (correction - mean) / np.sqrt(var)
-loss = T.sqr(correction_scaled - correction_predicted).mean()
+correction_scaled = (correction - mean) / sqr_var
+
+loss = abs(correction_scaled - correction_predicted).mean()
 loss.name = 'squared_error'
 
-obs_predicted = (correction_predicted * np.sqrt(var)) + mean + obs_sim
+obs_predicted = (correction_predicted * sqr_var) + mean + obs_sim
+
 percent = 100*abs((obs_predicted - obs_real) / obs_real).mean()
 percent.name = "percent_correction_predicted"
 
@@ -165,15 +166,20 @@ test_stream = DataStream(
     iteration_scheme=ShuffledScheme(swimmer_test.num_examples, BATCH)
 )
 
+grad_to_monitor = [u for u in algorithm.gradients if 'batch' not in u.name]
+grad_to_monitor = [T.sqrt(T.sqr(grad).sum()) for grad in grad_to_monitor]
+for i, grad in enumerate(grad_to_monitor):
+    grad.name = "W_grad_norm_{}".format(i)
+
 extensions = [
     #Timing(),
-    FinishAfter(after_n_epochs=150),
+    FinishAfter(after_n_epochs=1),
     # WeightClipping(parameters=generative_model.discriminator_parameters, after_batch=True),
     TrainingDataMonitoring(
-        [loss, percent],  # model.outputs+auxiliary_variables,
+        [loss, percent]+grad_to_monitor,  # model.outputs+auxiliary_variables,
         after_epoch=True),
     DataStreamMonitoring(
-        [loss, percent, percent_sim],  # auxiliary_variables,
+        [loss, percent, percent_sim]+grad_to_monitor,  # auxiliary_variables,
         test_stream,
         prefix="test"),
     Checkpoint('/Tmp/alitaiga/sim-to-real/gm_his{}_h{}_bn.tar'.format(history, h), every_n_epochs=15, after_training=True,
@@ -181,7 +187,7 @@ extensions = [
     ProgressBar(),
     Printing(),
 ]
-
+# import ipdb; ipdb.set_trace()
 main_loop = MainLoop(
     algorithm,
     data_stream=train_stream,
@@ -191,3 +197,4 @@ main_loop = MainLoop(
 )
 
 main_loop.run()
+import ipdb; ipdb.set_trace()
