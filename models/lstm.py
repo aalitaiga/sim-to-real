@@ -1,50 +1,74 @@
-from theano import tensor
-from blocks.brick.base import lazy
+from blocks.bricks import application, lazy
 from blocks.bricks.conv import Convolutional
 from blocks.bricks.recurrent import LSTM, recurrent, BaseRecurrent
 from blocks.utils import shared_floatx_nans, shared_floatx_zeros
 from blocks.roles import add_role, WEIGHT, INITIAL_STATE
-
+from theano import tensor
 
 class ConvLSTM(LSTM):
     """ Convolutional LSTM """
 
     @lazy(allocation=['filter_size', 'num_filters', 'num_channels'])
-    def __init__(self, dim, filter_size, num_filters, num_channels, batch_size=None,
-        image_size=(None,None), step=(1,1), border_mode='valid', activation=None,
-        gate_activation=None, **kwargs):
-        self.dim = dim
+    def __init__(self, filter_size, num_filters, num_channels, batch_size=None,
+        image_size=(None,None), step=(1,1), border_mode='valid', tied_biases=None,
+        activation=None, gate_activation=None, **kwargs):
         self.filter_size = filter_size
         self.num_filters = num_filters
         self.num_channels = num_channels
+        self.image_size = image_size
+        self.batch_size = batch_size
+        self.border_mode = border_mode
+        self.tied_biases = tied_biases
 
         self.input_convolution = Convolutional(
-            filter_size, 4*num_filters, num_channels, batch_size=batch_size,
-            image_size=image_size, step=step, border_mode=border_mode,
+            filter_size, 4*num_filters, num_channels,
+            batch_size=batch_size, image_size=image_size,
+            step=step, border_mode=border_mode, tied_biases=tied_biases,
             name='convolution_input'
         )
         self.state_convolution = Convolutional(
-            num_filters, 4*num_filters, num_channels, batch_size=batch_size,
-            image_size=image_size, step=step, border_mode=border_mode,
+            filter_size, 4*num_filters, num_filters,
+            batch_size=batch_size, image_size=image_size,
+            border_mode=border_mode, tied_biases=tied_biases,
             name='convolution_state'
         )
 
-        super(ConvLSTM, self).__init__(activation, gate_activation, **kwargs)
-        self.children.extend([self.input_convolution, self.output_convolution])
+        super(ConvLSTM, self).__init__(self.num_filters, activation, gate_activation, **kwargs)
+        self.children.extend([self.input_convolution, self.state_convolution])
+
+    def push_allocation_config(self):
+        self._push_allocation_config()
+        self.allocation_config_pushed = True
+
+        self.input_convolution.num_channels = self.num_channels
+        self.state_convolution.num_channels = self.num_filters
+
+        for layer in [self.input_convolution, self.state_convolution]:
+            layer.num_filters = 4*self.num_filters
+            layer.filter_size = self.filter_size
+            layer.image_size = self.image_size
+            layer.batch_size = self.batch_size
+            layer.tied_biases = self.tied_biases
+            layer.push_allocation_config()
 
     def _allocate(self):
-        self.W_cell_to_in = shared_floatx_nans((self.dim,),
-                                               name='W_cell_to_in')
-        self.W_cell_to_forget = shared_floatx_nans((self.dim,),
-                                                   name='W_cell_to_forget')
-        self.W_cell_to_out = shared_floatx_nans((self.dim,),
-                                                name='W_cell_to_out')
+        self.W_cell_to_in = shared_floatx_nans(
+            (self.num_filters,) + self.image_size, name='W_cell_to_in'
+        )
+        self.W_cell_to_forget = shared_floatx_nans(
+            (self.num_filters,) + self.image_size, name='W_cell_to_forget'
+        )
+        self.W_cell_to_out = shared_floatx_nans(
+            (self.num_filters,) + self.image_size, name='W_cell_to_out'
+        )
         # The underscore is required to prevent collision with
         # the `initial_state` application method
-        self.initial_state_ = shared_floatx_zeros((self.dim,),
-                                                  name="initial_state")
-        self.initial_cells = shared_floatx_zeros((self.dim,),
-                                                 name="initial_cells")
+        self.initial_state_ = shared_floatx_zeros(
+            (self.num_filters,) + self.image_size, name="initial_state"
+        )
+        self.initial_cells = shared_floatx_zeros(
+            (self.num_filters,) + self.image_size, name="initial_cells"
+        )
         add_role(self.W_cell_to_in, WEIGHT)
         add_role(self.W_cell_to_forget, WEIGHT)
         add_role(self.W_cell_to_out, WEIGHT)
@@ -60,9 +84,9 @@ class ConvLSTM(LSTM):
                contexts=[], outputs=['states', 'cells'])
     def apply(self, inputs, states, cells, mask=None):
         def slice_last(x, no):
-            return x[:, no*self.dim: (no+1)*self.dim, :, :]
+            return x[:, no*self.num_filters: (no+1)*self.num_filters, :, :]
 
-        activation = self.state_convolution.apply(states) + self.input_convolution.apply(inputs)
+        activation = self.input_convolution.apply(inputs) + self.state_convolution.apply(states)
         in_gate = self.gate_activation.apply(
             slice_last(activation, 0) + cells * self.W_cell_to_in)
         forget_gate = self.gate_activation.apply(
@@ -81,6 +105,11 @@ class ConvLSTM(LSTM):
                           (1 - mask[:, None]) * cells)
 
         return next_states, next_cells
+
+    @application(outputs=apply.states)
+    def initial_states(self, batch_size, *args, **kwargs):
+        return [tensor.repeat(self.initial_state_[None, :, :, :], batch_size, 0),
+                tensor.repeat(self.initial_cells[None, :, :, :], batch_size, 0)]
 
 
 # class StackedConvLSTM(BaseRecurrent):
@@ -125,3 +154,4 @@ if __name__ == '__main__':
     #
     # first_output = first_lstm.apply(input)
     # second_output = second_lstm.apply(first_output)
+    print 'hello'
