@@ -1,6 +1,6 @@
 from blocks.bricks import application, lazy
 from blocks.bricks.conv import Convolutional
-from blocks.bricks.recurrent import LSTM, recurrent, BaseRecurrent
+from blocks.bricks.recurrent import LSTM, recurrent
 from blocks.utils import shared_floatx_nans, shared_floatx_zeros
 from blocks.roles import add_role, WEIGHT, INITIAL_STATE
 from theano import tensor
@@ -19,6 +19,7 @@ class ConvLSTM(LSTM):
         self.batch_size = batch_size
         self.border_mode = border_mode
         self.tied_biases = tied_biases
+        self.feature_map_size = tuple(int(i/2) for i in image_size)
 
         self.input_convolution = Convolutional(
             filter_size, 4*num_filters, num_channels,
@@ -28,7 +29,7 @@ class ConvLSTM(LSTM):
         )
         self.state_convolution = Convolutional(
             filter_size, 4*num_filters, num_filters,
-            batch_size=batch_size, image_size=image_size,
+            batch_size=batch_size, image_size=self.feature_map_size,
             border_mode=border_mode, tied_biases=tied_biases,
             name='convolution_state'
         )
@@ -42,32 +43,33 @@ class ConvLSTM(LSTM):
 
         self.input_convolution.num_channels = self.num_channels
         self.state_convolution.num_channels = self.num_filters
+        self.input_convolution.image_size = self.image_size
+        self.state_convolution.image_size = self.feature_map_size
 
         for layer in [self.input_convolution, self.state_convolution]:
             layer.num_filters = 4*self.num_filters
             layer.filter_size = self.filter_size
-            layer.image_size = self.image_size
             layer.batch_size = self.batch_size
             layer.tied_biases = self.tied_biases
             layer.push_allocation_config()
 
     def _allocate(self):
         self.W_cell_to_in = shared_floatx_nans(
-            (self.num_filters,) + self.image_size, name='W_cell_to_in'
+            (self.num_filters,) + self.feature_map_size, name='W_cell_to_in'
         )
         self.W_cell_to_forget = shared_floatx_nans(
-            (self.num_filters,) + self.image_size, name='W_cell_to_forget'
+            (self.num_filters,) + self.feature_map_size, name='W_cell_to_forget'
         )
         self.W_cell_to_out = shared_floatx_nans(
-            (self.num_filters,) + self.image_size, name='W_cell_to_out'
+            (self.num_filters,) + self.feature_map_size, name='W_cell_to_out'
         )
         # The underscore is required to prevent collision with
         # the `initial_state` application method
         self.initial_state_ = shared_floatx_zeros(
-            (self.num_filters,) + self.image_size, name="initial_state"
+            (self.num_filters,) + self.feature_map_size, name="initial_state"
         )
         self.initial_cells = shared_floatx_zeros(
-            (self.num_filters,) + self.image_size, name="initial_cells"
+            (self.num_filters,) + self.feature_map_size, name="initial_cells"
         )
         add_role(self.W_cell_to_in, WEIGHT)
         add_role(self.W_cell_to_forget, WEIGHT)

@@ -20,7 +20,7 @@ from models.gan import GAN
 
 
 n_lstm = 3
-filter_size = (4,4)
+filter_size = (3,3)
 num_channels = 3
 num_filters = 16
 batch_size = 32
@@ -44,6 +44,22 @@ array = np.concatenate([array, 2*array, 3*array], axis=0).astype('float32')
 assert array.shape[0] == 3
 ans = f(array)
 
+# x_ = T.tensor4('features')
+# conv = Convolutional(
+#     filter_size, num_filters, num_channels,
+#     batch_size=batch_size, image_size=(64,64),
+#     step=step, border_mode=border_mode,
+#     weights_init=IsotropicGaussian(std=0.05, mean=0),
+#     biases_init=Constant(0.02),
+#     name='convolution_input'
+# )
+# conv.initialize()
+# h_ = conv.apply(x_)
+# f = theano.function([x_], h_)
+#
+# array = np.ones((batch_size, 3, 64, 64)).astype('float32')
+# ans =  f(array)
+# import ipdb; ipdb.set_trace()
 # training_stream = DataStream(
 #     data,
 #     iteration_scheme=ShuffledScheme(data.num_examples, batch_size)
