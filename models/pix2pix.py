@@ -1,28 +1,21 @@
-""" Generative model based on pix2pix https://arxiv.org/abs/1611.07004"""
+""" Generative model based on pix2pix https://arxiv.org/abs/1611.07004 """
+
 from blocks.algorithms import Adam, RMSProp
 from blocks.bricks import Tanh, Identity, LeakyRectifier
-from blocks.bricks.bn import SpatialBatchNormalization
-from blocks.bricks.conv import Convolutional, ConvolutionalSequence
-from blocks.bricks.sequences import Sequence
+from blocks.bricks.recurrent import RecurrentStack
 from blocks.initialization import IsotropicGaussian, Constant
-
-from fuel.datasets import CIFAR10
-from fuel.streams import DataStream
-from fuel.schemes import SequentialScheme
-from fuel.transformers import Flatten
 
 import numpy as np
 import theano
 from theano import tensor as T
 
-from models.lstm import ConvLSTM
+from models.lstm import ConvLSTM, DEConvLSTM
 from models.gan import GAN
 
-
-n_lstm = 3
+n_lstm = 2
 filter_size = (3,3)
 num_channels = 3
-num_filters = 16
+num_filters = [64, 128, 256, 512, 512, 512]
 batch_size = 32
 border_mode = 'half'
 image_size = [(int(64 / 2**i),int(64 / 2**i)) for i in range(7)]
@@ -30,85 +23,108 @@ step = (2,2)
 alpha = 10
 
 x = T.tensor5('features')
-first_lstm = ConvLSTM(filter_size, num_filters, num_channels,
-    image_size=(64,64), step=step, border_mode='half',
+
+generator = RecurrentStack(
+    [
+    ## Encoder
+    # input is (3, 64, 64)
+    ConvLSTM(
+        filter_size, num_filters[0], num_channels,
+        image_size=image_size[0], step=step, border_mode='half',
+        batch_size=batch_size
+    ),
+    # feature map is (32, 32)
+    ConvLSTM(
+        filter_size, num_filters[1], num_filters[0],
+        image_size=image_size[1], step=step, border_mode='half',
+        batch_size=batch_size
+    ),
+    # feature map is (16, 16)
+    ConvLSTM(
+        filter_size, num_filters[2], num_filters[1],
+        image_size=image_size[2], step=step, border_mode='half',
+        batch_size=batch_size
+    ),
+    # feature map is (8, 8)
+    ConvLSTM(
+        filter_size, num_filters[3], num_filters[2],
+        image_size=image_size[3], step=step, border_mode='half',
+        batch_size=batch_size
+    ),
+    # feature map is (4, 4)
+    ConvLSTM(
+        filter_size, num_filters[4], num_filters[3],
+        image_size=image_size[4], step=step, border_mode='half',
+        batch_size=batch_size
+    ),
+    # feature map is (2, 2)
+    ConvLSTM(
+        filter_size, num_filters[5], num_filters[4],
+        image_size=image_size[5], step=step, border_mode='half',
+        batch_size=batch_size
+    ),
+    # feature map is (1, 1)
+    # ConvLSTM(
+    #     filter_size, num_filters[4], num_filters[3],
+    #     image_size=image_size[6], step=step, border_mode='half',
+    #     batch_size=batch_size
+    # )
+    ## Decoder
+    ## Encoder
+    # feature map is (1, 1)
+    DEConvLSTM(
+        filter_size, num_filters[-1], num_filters[5],
+        image_size=image_size[-1], step=step, border_mode='half',
+        batch_size=batch_size
+    ),
+    # feature map is (2, 2)
+    DEConvLSTM(
+        filter_size, num_filters[-2], num_filters[-1],
+        image_size=image_size[-2], step=step, border_mode='half',
+        batch_size=batch_size
+    ),
+    # feature map is (4, 4)
+    DEConvLSTM(
+        filter_size, num_filters[-3], num_filters[-2],
+        image_size=image_size[-3], step=step, border_mode='half',
+        batch_size=batch_size
+    ),
+    # feature map is (8, 8)
+    DEConvLSTM(
+        filter_size, num_filters[-4], num_filters[-3],
+        image_size=image_size[-4], step=step, border_mode='half',
+        batch_size=batch_size
+    ),
+    # feature map is (16, 16)
+    DEConvLSTM(
+        filter_size, num_filters[-5], num_filters[-4],
+        image_size=image_size[-5], step=step, border_mode='half',
+        batch_size=batch_size
+    ),
+    # feature map is (32, 32)
+    DEConvLSTM(
+        filter_size, num_filters[-6], num_filters[-5],
+        image_size=image_size[-6], step=step, border_mode='half',
+        batch_size=batch_size
+    ),
+    # feature map is (64, 64)
+    DEConvLSTM(
+        filter_size, num_filters[-7], num_filters[-6],
+        image_size=image_size[-7], step=step, border_mode='half',
+        batch_size=batch_size
+    )
+    ],
+    fork_prototype=Identity(),
     weights_init=IsotropicGaussian(std=0.05, mean=0),
-    biases_init=Constant(0.02), batch_size=batch_size
+    biases_init=Constant(0.02),
 )
-first_lstm.initialize()
-h = first_lstm.apply(x)
-f = theano.function([x], h)
 
-array = np.ones((1, batch_size, 3, 64, 64))
-array = np.concatenate([array, 2*array, 3*array], axis=0).astype('float32')
-assert array.shape[0] == 3
-ans = f(array)
+discriminator = ConvolutionalSequence([
+    Convolutional((4,4), 64, name='conv_1'), LeakyRectifier(0.2),
+    Convolutional((4,4), 128, name='conv_2'), SpatialBatchNormalization(), LeakyRectifier(0.2),
+    Convolutional((4,4), 256, name='conv_3'), SpatialBatchNormalization(), LeakyRectifier(0.2),
+    Convolutional((4,4), 512, name='conv_4'), SpatialBatchNormalization(), LeakyRectifier(0.2),
+    Convolutional((4,4), 512, name='conv_5'), SpatialBatchNormalization(), LeakyRectifier(0.2),
+])
 
-# x_ = T.tensor4('features')
-# conv = Convolutional(
-#     filter_size, num_filters, num_channels,
-#     batch_size=batch_size, image_size=(64,64),
-#     step=step, border_mode=border_mode,
-#     weights_init=IsotropicGaussian(std=0.05, mean=0),
-#     biases_init=Constant(0.02),
-#     name='convolution_input'
-# )
-# conv.initialize()
-# h_ = conv.apply(x_)
-# f = theano.function([x_], h_)
-#
-# array = np.ones((batch_size, 3, 64, 64)).astype('float32')
-# ans =  f(array)
-# import ipdb; ipdb.set_trace()
-# training_stream = DataStream(
-#     data,
-#     iteration_scheme=ShuffledScheme(data.num_examples, batch_size)
-# )
-
-
-
-# cifar = CIFAR10(("train",))
-
-
-
-import ipdb; ipdb.set_trace()
-# second_lstm = ConvLSTM(dim, n_lstm, filter_size, num_filters,
-# image_size=image_size, step=step)
-#
-# generator = ConvolutionalSequence(
-#     [
-#         ConvLSTM(dim, n_lstm, filter_size, num_filters,
-#         image_size=image_size[0], step=step),
-#         ConvLSTM(dim, n_lstm, filter_size, num_filters,
-#         image_size=image_size[1], step=step)
-#         ConvLSTM(dim, n_lstm, filter_size, num_filters,
-#         image_size=image_size[2], step=step)
-#         ConvLSTM(dim, n_lstm, filter_size, num_filters,
-#         image_size=image_size[3], step=step)
-#         ConvLSTM(dim, n_lstm, filter_size, num_filters,
-#         image_size=image_size[4], step=step)
-#         ConvLSTM(dim, n_lstm, filter_size, num_filters,
-#         image_size=image_size[5], step=step)
-#         ConvLSTM(dim, n_lstm, filter_size, num_filters,
-#         image_size=image_size[6], step=step)
-#         ConvLSTM(dim, n_lstm, filter_size, num_filters,
-#         image_size=image_size, step=step)
-#         ConvLSTM(dim, n_lstm, filter_size, num_filters,
-#         image_size=image_size, step=step)
-#     ],
-#     num_channels=num_channels,
-#     weights_init=IsotropicGaussian(std=0.05, mean=0),
-#     biases_init=Constant(0.02),
-#     batch_size=batch_size,
-#     border_mode=border_mode,
-# )
-#
-# discriminator = ConvolutionalSequence([
-#     Convolutional((4,4), 64, name='conv_1'), LeakyRectifier(0.2),
-#     Convolutional((4,4), 128, name='conv_2'), SpatialBatchNormalization(), LeakyRectifier(0.2),
-#     Convolutional((4,4), 256, name='conv_3'), SpatialBatchNormalization(), LeakyRectifier(0.2),
-#     Convolutional((4,4), 512, name='conv_4'), SpatialBatchNormalization(), LeakyRectifier(0.2),
-#     Convolutional((4,4), 512, name='conv_5'), SpatialBatchNormalization(), LeakyRectifier(0.2),
-# ])
-#
-# gan = GAN(generator, discriminator, alpha=alpha)
+gan = GAN(generator, discriminator, alpha=alpha)

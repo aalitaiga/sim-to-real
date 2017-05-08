@@ -1,5 +1,5 @@
 from blocks.bricks import application, lazy
-from blocks.bricks.conv import Convolutional
+from blocks.bricks.conv import Convolutional, ConvolutionalTranspose
 from blocks.bricks.recurrent import LSTM, recurrent
 from blocks.utils import shared_floatx_nans, shared_floatx_zeros
 from blocks.roles import add_role, WEIGHT, INITIAL_STATE
@@ -113,47 +113,60 @@ class ConvLSTM(LSTM):
         return [tensor.repeat(self.initial_state_[None, :, :, :], batch_size, 0),
                 tensor.repeat(self.initial_cells[None, :, :, :], batch_size, 0)]
 
+class DEConvLSTM(LSTM):
+    "Same as before but with a deconvolution or transposed convolution"
+    
+    @lazy(allocation=['filter_size', 'num_filters', 'num_channels'])
+    def __init__(self, filter_size, num_filters, num_channels, batch_size=None,
+        image_size=(None,None), step=(1,1), border_mode='valid', tied_biases=None,
+        activation=None, gate_activation=None, **kwargs):
+        self.filter_size = filter_size
+        self.num_filters = num_filters
+        self.num_channels = num_channels
+        self.image_size = image_size
+        self.batch_size = batch_size
+        self.border_mode = border_mode
+        self.tied_biases = tied_biases
+        self.feature_map_size = tuple(int(i/2) for i in image_size)
 
-# class StackedConvLSTM(BaseRecurrent):
-#     """ Stacked convolutional lstm
-#         Can be implemented easily with only ConvLSTM
-#         However this class might be useful to add skip_connections
-#     """
-#
-#     def __init__(self, dim, n_lstm, filter_size, num_filters, num_channels, batch_size=None,
-#         image_size=(None,None), step=(1,1), border_mode='valid', activation=None,
-#         gate_activation=None, skip_connection=False, **kwargs):
-#
-#         self.dim = dim
-#         self.skip_connection = skip_connection
-#         self.layers = []
-#         for _ in range(n_lstm):
-#             self.layers.append(
-#                 ConvLSTM(dim, n_lstm, filter_size, num_filters, num_channels,
-#                 batch_size=batch_size, image_size=image_size, step=step, border_mode=border_mode,
-#                 activation=activation, gate_activation=gate_activation, **kwargs)
-#             )
-#         self.children = self.layers
-#
-#
-#     @recurrent(sequences=['inputs', 'mask'], states=['states_{}'.format(i) for i in len(self.layers)] + ['cells'],
-#                contexts=[], outputs=['states', 'cells'])
-#     def apply(self, inputs, states, cells, mask=None):
-#         pass
+        self.input_convolution = ConvolutionalTranspose(
+            filter_size, 4*num_filters, num_channels,
+            batch_size=batch_size, image_size=image_size,
+            step=step, border_mode=border_mode, tied_biases=tied_biases,
+            name='convolution_input'
+        )
+        self.state_convolution = ConvolutionalTranspose(
+            filter_size, 4*num_filters, num_filters,
+            batch_size=batch_size, image_size=self.feature_map_size,
+            border_mode=border_mode, tied_biases=tied_biases,
+            name='convolution_state'
+        )
 
+        super(ConvLSTM, self).__init__(self.num_filters, activation, gate_activation, **kwargs)
+        self.children.extend([self.input_convolution, self.state_convolution])
 
+    @recurrent(sequences=['inputs', 'mask'], states=['states', 'cells'],
+               contexts=[], outputs=['states', 'cells'])
+    def apply(self, inputs, states, cells, mask=None):
+        def slice_last(x, no):
+            return x[:, no*self.num_filters: (no+1)*self.num_filters, :, :]
 
-if __name__ == '__main__':
-    # Exemple of StackedConvLSTM:
+        activation = self.input_convolution.apply(inputs) + self.state_convolution.apply(states)
+        in_gate = self.gate_activation.apply(
+            slice_last(activation, 0) + cells * self.W_cell_to_in)
+        forget_gate = self.gate_activation.apply(
+            slice_last(activation, 1) + cells * self.W_cell_to_forget)
+        next_cells = (
+            forget_gate * cells +
+            in_gate * self.activation.apply(slice_last(activation, 2)))
+        out_gate = self.gate_activation.apply(
+            slice_last(activation, 3) + next_cells * self.W_cell_to_out)
+        next_states = out_gate * self.activation.apply(next_cells)
 
-    # TODO: add real parameters to make the code run
-    # first_lstm = ConvLSTM(dim, n_lstm, filter_size, num_filters, num_channels,
-    # batch_size=batch_size, image_size=image_size, step=step, border_mode=border_mode,
-    # activation=activation, gate_activation=gate_activation)
-    # second_lstm = ConvLSTM(dim, n_lstm, filter_size, num_filters, num_channels,
-    # batch_size=batch_size, image_size=image_size, step=step, border_mode=border_mode,
-    # activation=activation, gate_activation=gate_activation, **kwargs)
-    #
-    # first_output = first_lstm.apply(input)
-    # second_output = second_lstm.apply(first_output)
-    print 'hello'
+        if mask:
+            next_states = (mask[:, None] * next_states +
+                           (1 - mask[:, None]) * states)
+            next_cells = (mask[:, None] * next_cells +
+                          (1 - mask[:, None]) * cells)
+
+        return next_states, next_cells
