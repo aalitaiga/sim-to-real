@@ -101,6 +101,43 @@ class GAN(Initializable, Random):
             theano_func_kwargs={'allow_input_downcast': True}
         )
 
+class RecurrentCGAN(GAN):
+    """ Conditional GAN with a recurrent generator and a recurrent discriminator """
+    @application(inputs=['target_sequence', 'target_sequence_generated'], outputs=['data_preds', 'sample_preds'])
+    def get_predictions(self, target_sequence, target_sequence_generated, application_call):
+        # Two forward passes are made because using
+        pred_real = self.discriminator.apply(target_sequence)
+        pred_fake = self.discriminator.apply(target_sequence_generated)
+
+        application_call.add_auxiliary_variable(
+            T.nnet.sigmoid(pred_real).mean(), name='data_accuracy')
+        application_call.add_auxiliary_variable(
+            (1 - T.nnet.sigmoid(pred_fake)).mean(),
+            name='sample_accuracy')
+
+        return pred_real, pred_fake
+
+    @application(inputs=['source_sequence', 'target_sequence'], outputs=['discriminator_loss', 'generator_loss'])
+    def losses(self, source_sequence, target_sequence, application_call):
+        # TODO: add rewards later
+        target_sequence_generated = self.generator.apply(source_sequence)
+
+        pred_real, pred_fake = self.get_predictions(target_sequence, target_sequence_generated)
+
+        discriminator_loss = (T.nnet.softplus(-pred_real) +
+                              T.nnet.softplus(pred_fake)).mean()
+        abs_error = self.alpha * T.abs(target_sequence - target_sequence_generated).mean()
+        abs_error.name = 'abs_error'
+
+        generator_loss = T.nnet.softplus(-pred_fake).mean() + abs_error
+
+        application_call.add_auxiliary_variable(
+            abs((target_sequence_generated - target_sequence) / target_sequence).mean(),
+            name="percent_error"
+        )
+        return discriminator_loss, generator_loss
+
+
 class WGAN(GAN):
     """ Wasserstein GAN """
     @application(inputs=['context', 'obs_sim', 'obs_real'], outputs=['discriminator_loss', 'generator_loss'])
