@@ -21,7 +21,7 @@ class GAN(Initializable, Random):
         generator: :class:`blocks.bricks.Brick`
             Generator network.
         discriminator : :class:`blocks.bricks.Brick`
-            Discriminator network taking :math:`x` and :math:`z` as input.
+            Discriminator network
     """
     def __init__(self, generator, discriminator, alpha=0, **kwargs):
         self.generator = generator
@@ -44,16 +44,16 @@ class GAN(Initializable, Random):
         input_D_real = T.concatenate([x, y], axis=axis)
         input_D_fake = T.concatenate([x, y_tilde], axis=axis)
 
-        pred_real = self.discriminator.apply(input_D_real)
-        pred_fake = self.discriminator.apply(input_D_fake)
+        data_preds = self.discriminator.apply(input_D_real)
+        sample_preds = self.discriminator.apply(input_D_fake)
 
         application_call.add_auxiliary_variable(
-            T.nnet.sigmoid(pred_real).mean(), name='data_accuracy')
+            T.nnet.sigmoid(data_preds).mean(), name='data_accuracy')
         application_call.add_auxiliary_variable(
-            (1 - T.nnet.sigmoid(pred_fake)).mean(),
+            (1 - T.nnet.sigmoid(sample_preds)).mean(),
             name='sample_accuracy')
 
-        return pred_real, pred_fake
+        return data_preds, sample_preds
 
     @application(inputs=['context', 'obs_sim', 'obs_real'], outputs=['discriminator_loss', 'generator_loss'])
     def losses(self, context, obs_sim, obs_real, application_call):
@@ -62,14 +62,14 @@ class GAN(Initializable, Random):
         x_fake = T.concatenate([context, obs_sim], axis=axis)
         obs_generated = self.generator.apply(x_fake)
 
-        pred_real, pred_fake = self.get_predictions(context, obs_real, obs_generated)
+        data_preds, sample_preds = self.get_predictions(context, obs_real, obs_generated)
 
-        discriminator_loss = (T.nnet.softplus(-pred_real) +
-                              T.nnet.softplus(pred_fake)).mean()
+        discriminator_loss = (T.nnet.softplus(-data_preds) +
+                              T.nnet.softplus(sample_preds)).mean()
         sqr_error = self.alpha * T.abs(obs_real - obs_generated).mean()
         sqr_error.name = 'abs_error'
 
-        generator_loss = T.nnet.softplus(-pred_fake).mean() + sqr_error
+        generator_loss = T.nnet.softplus(-sample_preds).mean() + sqr_error
 
         application_call.add_auxiliary_variable(
             abs((obs_generated - obs_real) / obs_real).mean(),
@@ -105,31 +105,31 @@ class RecurrentCGAN(GAN):
     """ Conditional GAN with a recurrent generator and a recurrent discriminator """
     @application(inputs=['target_sequence', 'target_sequence_generated'], outputs=['data_preds', 'sample_preds'])
     def get_predictions(self, target_sequence, target_sequence_generated, application_call):
-        # Two forward passes are made because using
-        pred_real = self.discriminator.apply(target_sequence)
-        pred_fake = self.discriminator.apply(target_sequence_generated)
+        # Two forward passes are made because otherwise it can mess up backprop
+        data_preds = self.discriminator.apply(target_sequence)
+        sample_preds = self.discriminator.apply(target_sequence_generated)
 
         application_call.add_auxiliary_variable(
-            T.nnet.sigmoid(pred_real).mean(), name='data_accuracy')
+            T.nnet.sigmoid(data_preds).mean(), name='data_accuracy')
         application_call.add_auxiliary_variable(
-            (1 - T.nnet.sigmoid(pred_fake)).mean(),
+            (1 - T.nnet.sigmoid(sample_preds)).mean(),
             name='sample_accuracy')
 
-        return pred_real, pred_fake
+        return data_preds, sample_preds
 
     @application(inputs=['source_sequence', 'target_sequence'], outputs=['discriminator_loss', 'generator_loss'])
     def losses(self, source_sequence, target_sequence, application_call):
         # TODO: add rewards later
-        target_sequence_generated = self.generator.apply(source_sequence)
+        target_sequence_generated = self.generator.apply(source_sequence)[-2]
 
-        pred_real, pred_fake = self.get_predictions(target_sequence, target_sequence_generated)
+        data_preds, sample_preds = self.get_predictions(target_sequence, target_sequence_generated)
 
-        discriminator_loss = (T.nnet.softplus(-pred_real) +
-                              T.nnet.softplus(pred_fake)).mean()
-        abs_error = self.alpha * T.abs(target_sequence - target_sequence_generated).mean()
+        discriminator_loss = (T.nnet.softplus(-data_preds) +
+                              T.nnet.softplus(sample_preds)).mean()
+        abs_error = self.alpha * abs(target_sequence - target_sequence_generated).mean()
         abs_error.name = 'abs_error'
 
-        generator_loss = T.nnet.softplus(-pred_fake).mean() + abs_error
+        generator_loss = T.nnet.softplus(-sample_preds).mean() + abs_error
 
         application_call.add_auxiliary_variable(
             abs((target_sequence_generated - target_sequence) / target_sequence).mean(),
@@ -147,13 +147,13 @@ class WGAN(GAN):
         x_fake = T.concatenate([context, obs_sim], axis=axis)
         obs_generated = self.generator.apply(x_fake)
 
-        pred_real, pred_fake = self.get_predictions(context, obs_real, obs_generated)
+        data_preds, sample_preds = self.get_predictions(context, obs_real, obs_generated)
 
-        discriminator_loss = pred_fake.mean() - pred_real.mean()
+        discriminator_loss = sample_preds.mean() - data_preds.mean()
 
         sqr_error = self.alpha * T.sqr(obs_real - obs_generated).mean()
         sqr_error.name = 'squared_error'
-        generator_loss = -pred_fake.mean() + sqr_error
+        generator_loss = -sample_preds.mean() + sqr_error
 
         application_call.add_auxiliary_variable(
             abs((obs_generated - obs_real) / obs_real).mean(),

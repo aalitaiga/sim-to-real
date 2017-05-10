@@ -1,7 +1,7 @@
-from blocks.bricks import application, lazy, LinearLike, Feedforward
+from blocks.bricks import application, lazy, Linear, Initializable
 from blocks.bricks.conv import Convolutional, ConvolutionalTranspose
 from blocks.bricks.recurrent import LSTM, recurrent
-from blocks.bricks.wrappers import WithExtraDims
+# from blocks.bricks.wrappers import WithExtraDims
 from blocks.utils import shared_floatx_nans, shared_floatx_zeros
 from blocks.roles import add_role, WEIGHT, INITIAL_STATE, BIAS
 from theano import tensor
@@ -11,7 +11,7 @@ class ConvLSTM(LSTM):
 
     @lazy(allocation=['filter_size', 'num_filters', 'num_channels'])
     def __init__(self, filter_size, num_filters, num_channels, batch_size=None,
-        image_size=(None,None), step=(1,1), border_mode='valid', tied_biases=None,
+        image_size=(None,None), step=(1,1), border_mode='half', tied_biases=None,
         activation=None, gate_activation=None, convolution_type='conv', **kwargs):
         self.filter_size = filter_size
         self.num_filters = num_filters
@@ -20,14 +20,15 @@ class ConvLSTM(LSTM):
         self.batch_size = batch_size
         self.border_mode = border_mode
         self.tied_biases = tied_biases
-        self.feature_map_size = tuple(int(i/2) for i in image_size)
 
         if convolution_type == 'conv':
             conv = Convolutional
+            self.feature_map_size = tuple(int(i/j) for i,j in zip(image_size, step))
             add_kwargs = {}
         elif convolution_type == 'deconv':
             conv = ConvolutionalTranspose
-            add_kwargs = {}#{'original_image_size': (2,2)}
+            self.feature_map_size = tuple(2*i for i in image_size)
+            add_kwargs = {'original_image_size': self.feature_map_size}
         else:
             raise ValueError
 
@@ -41,7 +42,7 @@ class ConvLSTM(LSTM):
             filter_size, 4*num_filters, num_filters,
             batch_size=batch_size, image_size=self.feature_map_size,
             border_mode=border_mode, tied_biases=tied_biases,
-            name='convolution_state', **add_kwargs
+            name='convolution_state'
         )
 
         super(ConvLSTM, self).__init__(self.num_filters, activation, gate_activation, **kwargs)
@@ -123,27 +124,13 @@ class ConvLSTM(LSTM):
         return [tensor.repeat(self.initial_state_[None, :, :, :], batch_size, 0),
                 tensor.repeat(self.initial_cells[None, :, :, :], batch_size, 0)]
 
-# class LinearPlus(Linear)
-#     decorators = [WithExtraDims()]
 
-class Linear2(LinearLike, Feedforward):
+class Linear2(Linear):
     @lazy(allocation=['input_dim', 'output_dim'])
-    def __init__(self, input_dim, output_dim, batch_size, **kwargs):
-        super(Linear, self).__init__(**kwargs)
-        self.input_dim = input_dim
-        self.output_dim = output_dim
+    def __init__(self, input_dim, output_dim, time, batch_size, **kwargs):
+        super(Linear2, self).__init__(input_dim, output_dim, **kwargs)
         self.batch_size = batch_size
-
-    def _allocate(self):
-        W = shared_floatx_nans((self.input_dim, self.output_dim), name='W')
-        add_role(W, WEIGHT)
-        self.parameters.append(W)
-        self.add_auxiliary_variable(W.norm(2), name='W_norm')
-        if getattr(self, 'use_bias', True):
-            b = shared_floatx_nans((self.output_dim,), name='b')
-            add_role(b, BIAS)
-            self.parameters.append(b)
-            self.add_auxiliary_variable(b.norm(2), name='b_norm')
+        self.time = time
 
     @application(inputs=['input_'], outputs=['output'])
     def apply(self, input_):
@@ -157,17 +144,32 @@ class Linear2(LinearLike, Feedforward):
         output : :class:`~tensor.TensorVariable`
             The transformed input plus optional bias
         """
-        # From (time, batch, n_channel, 1, 1) to (batch, time, n_channel)
+        # From (time, batch, num_filters, 1, 1) to (batch, time, num_filters)
         input_ = input_.dimshuffle(1,0,2,3,4)
-        input_ = input_.reshape([self.batch_size, self.time, -1])
+        input_ = input_.reshape([self.batch_size, self.time, self.input_dim])
         output = tensor.dot(input_, self.W)
         if getattr(self, 'use_bias', True):
             output += self.b
         return output
 
-    def get_dim(self, name):
-        if name == 'input_':
-            return self.input_dim
-        if name == 'output':
-            return self.output_dim
-        super(Linear, self).get_dim(name)
+class Discriminator(Initializable):
+    """ Helper class for the discriminator """
+
+    def __init__(self, discriminator_rnn, linear, activation=None, **kwargs):
+        super(Discriminator, self).__init__(**kwargs)
+        self.discriminator_rnn = discriminator_rnn
+        self.linear = linear
+        self.activation = activation
+        self.children.extend([
+            discriminator_rnn, linear
+        ])
+        if activation is not None:
+            self.children.append(activation)
+
+    @application(inputs=['input_'], outputs=['output'])
+    def apply(self, input_):
+        output_rnn = self.discriminator_rnn.apply(input_)
+        output = self.linear.apply(output_rnn[-2])
+        if self.activation:
+            output = self.activation.apply(output)
+        return output
