@@ -95,6 +95,11 @@ ENV/
 
 # Trained model
 *.tar
+*.tar.xz
 
 # Slurm logs
 *.out
+*.csv
+*.jpg
+data/ergo-rec*
+*.h5
