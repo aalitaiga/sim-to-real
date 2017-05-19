@@ -1,18 +1,13 @@
 from collections import OrderedDict
 
-from blocks.algorithms import GradientDescent, Restrict, StepRule, CompositeRule
+from blocks.algorithms import GradientDescent, Restrict, CompositeRule
 from blocks.bricks.base import application
 from blocks.bricks.interfaces import Initializable, Random
 from blocks.extensions import SimpleExtension
-from blocks.roles import add_role, ALGORITHM_HYPERPARAMETER, ALGORITHM_BUFFER
 from blocks.select import Selector
-from blocks.utils import shared_floatx
 
-from picklable_itertools.extras import equizip
-import numpy as np
 import theano
 from theano import tensor as T
-from theano.ifelse import ifelse
 
 class GAN(Initializable, Random):
     """ Generative adversarial generative model
@@ -88,10 +83,10 @@ class GAN(Initializable, Random):
         gradients.update(
             zip(generator_parameters,
                 theano.grad(generator_loss, generator_parameters)))
-        step_rule = CompositeRule(Restrict(discriminator_step_rule,
+        step_rule = CompositeRule([Restrict(discriminator_step_rule,
                                             discriminator_parameters),
                                    Restrict(generator_step_rule,
-                                            generator_parameters))
+                                            generator_parameters)])
         return GradientDescent(
             cost=generator_loss + discriminator_loss,
             gradients=gradients,

@@ -12,7 +12,7 @@ from blocks.extensions import CallbackName
 from blocks.model import Model
 from rllab.envs.normalized_env import NormalizedEnv
 
-from buffer_ import FIFO
+from utils.buffer_ import FIFO
 
 logger = logging.getLogger(__name__)
 

@@ -3,15 +3,13 @@ import signal
 from subprocess import Popen, PIPE
 import time
 
-# from abc import ABCMeta
-# from six import add_metaclass
+from blocks.extensions import SimpleExtension
 import numpy as np
-
 from visdom import Visdom
 
-from blocks.extensions import SimpleExtension
-
 logger = logging.getLogger(__name__)
+
+# https://gist.github.com/dmitriy-serdyuk/83f4130e53590bec908e16260ff6ee26
 
 # @add_metaclass(ABCMeta)
 class Plot(SimpleExtension):
@@ -104,3 +102,54 @@ class Plot(SimpleExtension):
                         win=win,
                         update='append'
                     )
+
+class VisdomExt(SimpleExtension):
+    r""" Extension doing visdom plotting.
+    The log should contain two fields: `'iteration'` (integer) and
+    `'records'` (dict). The records dictionary has a form
+    `{line_name: {key: value}}`, where the line name is in the `line_names`.
+    The handler ignores extra content in the log. Multiple handlers
+    are expected to be used to create multiple plot windows.
+    Parameters
+    ----------
+    line_names : list of str
+        Line names to be shown in legend. Same names should appear
+        in the log.
+    key : str
+        Key to be plotted.
+    plot_options : dict
+        Plot options are passed as `opts` argument to the
+        :meth:`Visdom.line`.
+    \*\*kwargs : dict
+        Keyword arguments to be passed to the :class:`Visdom` constructor.
+    """
+    def __init__(self, line_names, plot_options={}, visdom_kwargs={},
+                 **kwargs):
+        self.viz = Visdom(**visdom_kwargs)
+        self.line_names = line_names
+
+        # we have to initialize the plot with some data, but NaNs are ignored
+        dummy_data = [np.nan] * len(self.line_names)
+        dummy_ind = [0.] * len(self.line_names)
+        plot_options.update(dict(legend=line_names))
+        # `line` method squeezes the input, in order to maintain the shape
+        # we have to repeat it twice making its shape (2, M), where M is
+        # the number of lines
+        self.window = self.viz.line(np.vstack([dummy_data, dummy_data]),
+                                    np.vstack([dummy_ind, dummy_ind]),
+                                    opts=plot_options)
+        super(VisdomExt, self).__init__(**kwargs)
+
+    def do(self, which_callback, *args):
+        log = self.main_loop.log
+        if 'batch' in which_callback:
+            iteration = log.status['iterations_done']
+        else:
+            iteration = log.status['epochs_done']
+        for name in self.line_names:
+            if name in log.current_row:
+                values = np.array(
+                    [log.current_row[name]], dtype='float64')
+                iterations = np.array([iteration], dtype='float64')
+                self.viz.updateTrace(iterations, values, append=True,
+                                     name=name, win=self.window)

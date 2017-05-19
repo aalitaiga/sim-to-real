@@ -103,3 +103,6 @@ ENV/
 *.jpg
 data/ergo-rec*
 *.h5
+
+/mnist.py
+/viz_test.py
