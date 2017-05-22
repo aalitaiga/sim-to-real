@@ -132,6 +132,26 @@ class RecurrentCGAN(GAN):
         )
         return discriminator_loss, generator_loss
 
+    @application(inputs=['source_sequence', 'target_sequence'], outputs=['discriminator_loss', 'generator_loss'])
+    def wgan_losses(self, source_sequence, target_sequence, application_call):
+        # TODO: add rewards later
+        target_sequence_generated = self.generator.apply(source_sequence)[-2]
+
+        data_preds, sample_preds = self.get_predictions(target_sequence, target_sequence_generated)
+
+        discriminator_loss = sample_preds.mean() - data_preds.mean()
+
+        abs_error = self.alpha * abs(target_sequence - target_sequence_generated).mean()
+        abs_error.name = 'abs_error'
+
+        generator_loss = -sample_preds.mean() + abs_error
+
+        application_call.add_auxiliary_variable(
+            abs((target_sequence_generated - target_sequence) / target_sequence).mean(),
+            name="percent_error"
+        )
+        return discriminator_loss, generator_loss
+
 
 class WGAN(GAN):
     """ Wasserstein GAN """
