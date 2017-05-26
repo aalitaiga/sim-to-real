@@ -8,6 +8,10 @@ from blocks.select import Selector
 
 import theano
 from theano import tensor as T
+from theano.sandbox.rng_mrg import MRG_RandomStreams
+
+seed = 24
+theano_rng = MRG_RandomStreams(seed)
 
 class GAN(Initializable, Random):
     """ Generative adversarial generative model
@@ -96,63 +100,6 @@ class GAN(Initializable, Random):
             theano_func_kwargs={'allow_input_downcast': True}
         )
 
-class RecurrentCGAN(GAN):
-    """ Conditional GAN with a recurrent generator and a recurrent discriminator """
-    @application(inputs=['target_sequence', 'target_sequence_generated'], outputs=['data_preds', 'sample_preds'])
-    def get_predictions(self, target_sequence, target_sequence_generated, application_call):
-        # Two forward passes are made because otherwise it can mess up backprop
-        data_preds = self.discriminator.apply(target_sequence)
-        sample_preds = self.discriminator.apply(target_sequence_generated)
-
-        application_call.add_auxiliary_variable(
-            T.nnet.sigmoid(data_preds).mean(), name='data_accuracy')
-        application_call.add_auxiliary_variable(
-            (1 - T.nnet.sigmoid(sample_preds)).mean(),
-            name='sample_accuracy')
-
-        return data_preds, sample_preds
-
-    @application(inputs=['source_sequence', 'target_sequence'], outputs=['discriminator_loss', 'generator_loss'])
-    def losses(self, source_sequence, target_sequence, application_call):
-        # TODO: add rewards later
-        target_sequence_generated = self.generator.apply(source_sequence)[-2]
-
-        data_preds, sample_preds = self.get_predictions(target_sequence, target_sequence_generated)
-
-        discriminator_loss = (T.nnet.softplus(-data_preds) +
-                              T.nnet.softplus(sample_preds)).mean()
-        abs_error = self.alpha * abs(target_sequence - target_sequence_generated).mean()
-        abs_error.name = 'abs_error'
-
-        generator_loss = T.nnet.softplus(-sample_preds).mean() + abs_error
-
-        application_call.add_auxiliary_variable(
-            abs((target_sequence_generated - target_sequence) / target_sequence).mean(),
-            name="percent_error"
-        )
-        return discriminator_loss, generator_loss
-
-    @application(inputs=['source_sequence', 'target_sequence'], outputs=['discriminator_loss', 'generator_loss'])
-    def wgan_losses(self, source_sequence, target_sequence, application_call):
-        # TODO: add rewards later
-        target_sequence_generated = self.generator.apply(source_sequence)[-2]
-
-        data_preds, sample_preds = self.get_predictions(target_sequence, target_sequence_generated)
-
-        discriminator_loss = sample_preds.mean() - data_preds.mean()
-
-        abs_error = self.alpha * abs(target_sequence - target_sequence_generated).mean()
-        abs_error.name = 'abs_error'
-
-        generator_loss = -sample_preds.mean() + abs_error
-
-        application_call.add_auxiliary_variable(
-            abs((target_sequence_generated - target_sequence) / target_sequence).mean(),
-            name="percent_error"
-        )
-        return discriminator_loss, generator_loss
-
-
 class WGAN(GAN):
     """ Wasserstein GAN """
     @application(inputs=['context', 'obs_sim', 'obs_real'], outputs=['discriminator_loss', 'generator_loss'])
@@ -209,6 +156,58 @@ class WGAN(GAN):
             theano_func_kwargs={'allow_input_downcast': True}
         )
         return discriminator_algo, generator_algo
+
+class RecurrentCGAN(WGAN):
+    """ Conditional GAN with a recurrent generator and a recurrent discriminator """
+    @application(inputs=['target_sequence', 'target_sequence_generated'], outputs=['data_preds', 'sample_preds'])
+    def get_predictions(self, target_sequence, target_sequence_generated, application_call):
+        # Two forward passes are made because otherwise it can mess up backprop
+        data_preds = self.discriminator.apply(target_sequence)
+        sample_preds = self.discriminator.apply(target_sequence_generated)
+
+        return data_preds, sample_preds
+
+    # @application(inputs=['source_sequence', 'target_sequence'], outputs=['discriminator_loss', 'generator_loss'])
+    # def losses(self, source_sequence, target_sequence, application_call):
+    #     # TODO: add rewards later
+    #     target_sequence_generated = self.generator.apply(source_sequence)[-2]
+    #
+    #     data_preds, sample_preds = self.get_predictions(target_sequence, target_sequence_generated)
+    #
+    #     discriminator_loss = (T.nnet.softplus(-data_preds) +
+    #                           T.nnet.softplus(sample_preds)).mean()
+    #     abs_error = self.alpha * abs(target_sequence - target_sequence_generated).mean()
+    #     abs_error.name = 'abs_error'
+    #
+    #     generator_loss = T.nnet.softplus(-sample_preds).mean() + abs_error
+    #
+    #     application_call.add_auxiliary_variable(
+    #         abs((target_sequence_generated - target_sequence) / target_sequence).mean(),
+    #         name="percent_error"
+    #     )
+    #     return discriminator_loss, generator_loss
+
+    @application(inputs=['source_sequence', 'target_sequence'], outputs=['discriminator_loss', 'generator_loss'])
+    def wgan_losses(self, source_sequence, target_sequence, application_call):
+        # TODO: add rewards later
+        target_sequence_generated = self.generator.apply(source_sequence)[-2]
+        data_preds, sample_preds = self.get_predictions(target_sequence, target_sequence_generated)
+
+        abs_error = abs(target_sequence - target_sequence_generated).mean()
+        abs_error.name = 'abs_error'
+        generator_loss = -sample_preds.mean() + self.alpha * abs_error
+
+        # Compute the WGAN gradient penalty
+        eps = theano_rng.uniform(size=(target_sequence.shape[0],1,1,1,1))
+        differences = target_sequence_generated - target_sequence
+        interpolates = target_sequence + eps * differences
+        gradients = theano.grad(self.discriminator.apply(interpolates).mean(), interpolates)
+        slopes = T.sqrt(T.sum(T.sqr(gradients), axis=[1,2,3,4]))
+        gradient_penalty = T.sqr(slopes - 1.).mean()
+        gradient_penalty.name = 'gradient_penalty'
+        discriminator_loss = (sample_preds - data_preds).mean() + gradient_penalty
+
+        return discriminator_loss, generator_loss
 
 class ParameterPrint(SimpleExtension):
     """ Check that parameters are indeed clipped """

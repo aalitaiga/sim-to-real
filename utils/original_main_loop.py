@@ -92,7 +92,8 @@ class MainLoop(object):
 
     """
     def __init__(self, algorithm, data_stream, model=None, log=None,
-                 log_backend=None, extensions=None, generator_algorithm=None):
+                 log_backend=None, extensions=None, generator_algorithm=None,
+                 discriminator_iters=1):
         if log is None:
             if log_backend is None:
                 log_backend = config.log_backend
@@ -105,6 +106,7 @@ class MainLoop(object):
         self.generator_algorithm = generator_algorithm
         self.log = log
         self.extensions = extensions
+        self.discriminator_iters = discriminator_iters
 
         self.profile = Profile()
 
@@ -232,8 +234,10 @@ class MainLoop(object):
             self.status['epoch_started'] = True
             self._run_extensions('before_epoch')
         with Timer('epoch', self.profile):
-            while self._run_iteration():
-                pass
+            i = 0
+            while self._run_iteration(i):
+                i += 1
+                i = i % self.discriminator_iters
         self.status['epoch_started'] = False
         self.status['epochs_done'] += 1
         # Log might not allow mutating objects, so use += instead of append
@@ -242,7 +246,7 @@ class MainLoop(object):
         self._check_finish_training('epoch')
         return True
 
-    def _run_iteration(self):
+    def _run_iteration(self, n_iters):
         try:
             with Timer('read_data', self.profile):
                 batch = next(self.epoch_iterator)
@@ -254,7 +258,7 @@ class MainLoop(object):
         self._run_extensions('before_batch', batch)
         with Timer('train', self.profile):
             self.algorithm.process_batch(batch)
-            if self.generator_algorithm:
+            if self.generator_algorithm and n_iters == 0:
                 self.generator_algorithm.process_batch(batch)
         self.status['iterations_done'] += 1
         self._run_extensions('after_batch', batch)

@@ -128,7 +128,7 @@ class ConvLSTM(LSTM):
 class Linear2(Linear):
     @lazy(allocation=['input_dim', 'output_dim'])
     def __init__(self, input_dim, output_dim, time, batch_size, **kwargs):
-        super(Linear2, self).__init__(input_dim, output_dim, **kwargs)
+        super(Linear2, self).__init__(input_dim*time, output_dim, **kwargs)
         self.batch_size = batch_size
         self.time = time
 
@@ -146,7 +146,7 @@ class Linear2(Linear):
         """
         # From (time, batch, num_filters, 1, 1) to (batch, time, num_filters)
         input_ = input_.dimshuffle(1,0,2,3,4)
-        input_ = input_.reshape([self.batch_size, self.time, self.input_dim])
+        input_ = input_.reshape([self.batch_size, self.input_dim])
         output = tensor.dot(input_, self.W)
         if getattr(self, 'use_bias', True):
             output += self.b
