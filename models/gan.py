@@ -157,7 +157,7 @@ class WGAN(GAN):
         )
         return discriminator_algo, generator_algo
 
-class RecurrentCGAN(WGAN):
+class RecurrentCGAN(GAN):
     """ Conditional GAN with a recurrent generator and a recurrent discriminator """
     @application(inputs=['target_sequence', 'target_sequence_generated'], outputs=['data_preds', 'sample_preds'])
     def get_predictions(self, target_sequence, target_sequence_generated, application_call):
@@ -165,27 +165,28 @@ class RecurrentCGAN(WGAN):
         data_preds = self.discriminator.apply(target_sequence)
         sample_preds = self.discriminator.apply(target_sequence_generated)
 
+        application_call.add_auxiliary_variable(
+            T.nnet.sigmoid(data_preds).mean(), name='data_accuracy')
+        application_call.add_auxiliary_variable(
+            (1 - T.nnet.sigmoid(sample_preds)).mean(),
+            name='sample_accuracy')
+
         return data_preds, sample_preds
 
-    # @application(inputs=['source_sequence', 'target_sequence'], outputs=['discriminator_loss', 'generator_loss'])
-    # def losses(self, source_sequence, target_sequence, application_call):
-    #     # TODO: add rewards later
-    #     target_sequence_generated = self.generator.apply(source_sequence)[-2]
-    #
-    #     data_preds, sample_preds = self.get_predictions(target_sequence, target_sequence_generated)
-    #
-    #     discriminator_loss = (T.nnet.softplus(-data_preds) +
-    #                           T.nnet.softplus(sample_preds)).mean()
-    #     abs_error = self.alpha * abs(target_sequence - target_sequence_generated).mean()
-    #     abs_error.name = 'abs_error'
-    #
-    #     generator_loss = T.nnet.softplus(-sample_preds).mean() + abs_error
-    #
-    #     application_call.add_auxiliary_variable(
-    #         abs((target_sequence_generated - target_sequence) / target_sequence).mean(),
-    #         name="percent_error"
-    #     )
-    #     return discriminator_loss, generator_loss
+    @application(inputs=['source_sequence', 'target_sequence'], outputs=['discriminator_loss', 'generator_loss'])
+    def losses(self, source_sequence, target_sequence, application_call):
+        # TODO: add rewards later
+        target_sequence_generated = self.generator.apply(source_sequence)[-2]
+
+        data_preds, sample_preds = self.get_predictions(target_sequence, target_sequence_generated)
+
+        discriminator_loss = (T.nnet.softplus(-data_preds) +
+                              T.nnet.softplus(sample_preds)).mean()
+        abs_error = self.alpha * abs(target_sequence - target_sequence_generated).mean()
+        abs_error.name = 'abs_error'
+
+        generator_loss = T.nnet.softplus(-sample_preds).mean() + abs_error
+        return discriminator_loss, generator_loss
 
     @application(inputs=['source_sequence', 'target_sequence'], outputs=['discriminator_loss', 'generator_loss'])
     def wgan_losses(self, source_sequence, target_sequence, application_call):

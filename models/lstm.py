@@ -1,10 +1,12 @@
 from blocks.bricks import application, lazy, Linear, Initializable
-from blocks.bricks.conv import Convolutional, ConvolutionalTranspose
+# from blocks.bricks.conv import Convolutional, ConvolutionalTranspose
 from blocks.bricks.recurrent import LSTM, recurrent
 # from blocks.bricks.wrappers import WithExtraDims
 from blocks.utils import shared_floatx_nans, shared_floatx_zeros
 from blocks.roles import add_role, WEIGHT, INITIAL_STATE, BIAS
 from theano import tensor
+
+from models.conv import Convolutional, ConvolutionalTranspose
 
 class ConvLSTM(LSTM):
     """ Convolutional LSTM """
@@ -12,7 +14,8 @@ class ConvLSTM(LSTM):
     @lazy(allocation=['filter_size', 'num_filters', 'num_channels'])
     def __init__(self, filter_size, num_filters, num_channels, batch_size=None,
         image_size=(None,None), step=(1,1), border_mode='half', tied_biases=None,
-        activation=None, gate_activation=None, convolution_type='conv', **kwargs):
+        activation=None, gate_activation=None, convolution_type='conv',
+        weightnorm=False, **kwargs):
         self.filter_size = filter_size
         self.num_filters = num_filters
         self.num_channels = num_channels
@@ -36,13 +39,13 @@ class ConvLSTM(LSTM):
             filter_size, 4*num_filters, num_channels,
             batch_size=batch_size, image_size=image_size,
             step=step, border_mode=border_mode, tied_biases=tied_biases,
-            name='convolution_input', **add_kwargs
+            name='convolution_input', weightnorm=weightnorm, **add_kwargs
         )
         self.state_convolution = conv(
             filter_size, 4*num_filters, num_filters,
             batch_size=batch_size, image_size=self.feature_map_size,
             border_mode=border_mode, tied_biases=tied_biases,
-            name='convolution_state'
+            name='convolution_state', weightnorm=weightnorm
         )
 
         super(ConvLSTM, self).__init__(self.num_filters, activation, gate_activation, **kwargs)

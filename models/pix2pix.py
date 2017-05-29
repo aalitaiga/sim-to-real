@@ -1,5 +1,5 @@
 """ Generative model based on pix2pix https://arxiv.org/abs/1611.07004 """
-from datetime import date
+from datetime import datetime
 import logging
 import math
 import os
@@ -17,7 +17,8 @@ import theano
 from theano import tensor as T
 
 from utils.extensions import VisdomExt, GenerateSamples
-from utils.original_main_loop import MainLoop
+# from utils.original_main_loop import MainLoop
+from blocks.main_loop import MainLoop
 from models.lstm import ConvLSTM, Linear2, Discriminator
 from models.gan import RecurrentCGAN
 
@@ -40,12 +41,12 @@ assert len(num_filters) == len(image_size) == len(discriminator_num_filters)
 encoder_archi = [ConvLSTM(
     filter_size, num_filters[i+1], num_filters[i],
     image_size=image_size[i], step=step, border_mode='half',
-    batch_size=batch_size, name='encoder_lstm'
+    batch_size=batch_size, name='encoder_lstm', weightnorm=True
 ) for i in range(len(image_size)-1)]
 decoder_archi = [ConvLSTM(
     filter_size, num_filters[-i-1], num_filters[-i],
     image_size=image_size[-i], step=step, border_mode='half',
-    batch_size=batch_size, convolution_type='deconv',
+    batch_size=batch_size, convolution_type='deconv', weightnorm=True,
     name='decoder_lstm'
 ) for i in range(1,len(image_size))]
 
@@ -57,18 +58,12 @@ generator = RecurrentStack(
     name='generator'
 )
 
-#  [ConvLSTM(
-#         filter_size, num_filters[0], num_filters[1],
-#         image_size=image_size[0], step=(1,1), border_mode='half',
-#         batch_size=batch_size,
-# )]
-
 discriminator_rnn = RecurrentStack(
     [
         ConvLSTM(
             filter_size, discriminator_num_filters[i+1], discriminator_num_filters[i],
             image_size=image_size[i], step=step, border_mode='half',
-            batch_size=batch_size,
+            batch_size=batch_size, weightnorm=True
         ) for i in range(len(image_size)-1)
     ],
     fork_prototype=Identity(),
@@ -93,13 +88,13 @@ if __name__ == '__main__':
     from blocks.extensions import FinishAfter, Printing, ProgressBar
     from blocks.extensions.monitoring import TrainingDataMonitoring
     from blocks.extensions.saveload import Checkpoint, Load
-    from blocks.graph import apply_dropout, ComputationGraph
+    from blocks.graph import apply_noise, apply_dropout, ComputationGraph
     from blocks.model import Model
     # from blocks.main_loop import MainLoop
     from blocks.filter import VariableFilter
     from blocks.roles import INPUT
 
-    path = '/Tmp/alitaiga/sim-to-real/{}'.format(date.today())
+    path = '/Tmp/alitaiga/sim-to-real/{}'.format(datetime.now())
     if not os.path.exists(path):
         os.makedirs(path)
 
@@ -107,6 +102,7 @@ if __name__ == '__main__':
     beta1 = 0.5
     dropout = 0.5
     load = False
+    noise_std = 0.2
 
     gan = RecurrentCGAN(generator, discriminator, alpha=alpha)
     gan.initialize()
@@ -135,7 +131,7 @@ if __name__ == '__main__':
     img_target = img_target.dimshuffle(1,0,2,3,4)
     # full_states = full_states.dimshuffle(1,0,2)
 
-    discriminator_loss, generator_loss = gan.wgan_losses(img_source, img_target)
+    discriminator_loss, generator_loss = gan.losses(img_source, img_target)
     discriminator_loss.name = 'discriminator_loss'
     generator_loss.name = 'generator_loss'
     cg = ComputationGraph([discriminator_loss, generator_loss])
@@ -147,13 +143,17 @@ if __name__ == '__main__':
         dropout_inputs = [inp for inp in inputs if inp.name in to_keep]
         cg = apply_dropout(cg, dropout_inputs, dropout)
 
+    if noise_std > 0:
+        noisy_inputs = []
+        cg = apply_noise(cg, noisy_inputs, noise_std)
+
     model = Model(cg.outputs)
     auxiliary_variables = [u for u in model.auxiliary_variables if 'norm' not in u.name]
-    auxiliary_variables.extend(VariableFilter(theano_name='gradient_penalty')(model.variables))
+    # auxiliary_variables.extend(VariableFilter(theano_name='gradient_penalty')(model.variables))
     auxiliary_variables.extend(VariableFilter(theano_name='abs_error')(model.variables))
-    # import ipdb; ipdb.set_trace()
     step_rule = Adam(learning_rate=lr, beta1=beta1)
-    discriminator_algo, generator_algo = gan.algorithm(discriminator_loss, generator_loss, step_rule, step_rule)
+    # discriminator_algo, generator_algo = gan.algorithm(discriminator_loss, generator_loss, step_rule, step_rule)
+    algorithm = gan.algorithm(discriminator_loss, generator_loss, step_rule, step_rule)
 
     extensions = [
         FinishAfter(after_n_epochs=0),
@@ -164,28 +164,32 @@ if __name__ == '__main__':
         ProgressBar(),
         VisdomExt([[
             'discriminator_loss',
+            'generator_loss'
         ], [
-            'gradient_penalty',
+            # 'gradient_penalty',
             'abs_error'
+        ], [
+            'data_accuracy', 'sample_accuracy'
         ]], [dict(title='WGAN losses', xlabel='iterations', ylabel='value`'),
-            dict(title='Other costs', xlabel='iterations', ylabel='value')],
-            {'env': 'WGAN_{}'.format(date.today())}, after_batch=True),
+            dict(title='Other costs', xlabel='iterations', ylabel='value'),
+            dict(title='Discriminator accuracies', xlabel='iterations', ylabel='probability')],
+            {'env': 'WGAN_{}'.format(datetime.now())}, after_batch=True),
         # Load('Tmp/alitaiga/sim-to-real/pix2pix.tar'),
         Checkpoint(path+'/pix2pix.tar', every_n_epochs=2, after_training=True,
                    use_cpickle=True),
         GenerateSamples(
             theano.function([input_], gan.generator.apply(img_source)),
-            path, after_epoch=True),
+            path, every_n_epochs=3),
         Printing()
     ]
 
     main_loop = MainLoop(
-        discriminator_algo,
+        algorithm,
         data_stream=stream,
         model=model,
         extensions=extensions,
-        generator_algorithm=generator_algo,
-        discriminator_iters=5
+        # generator_algorithm=generator_algo,
+        # discriminator_iters=5
     )
 
     main_loop.run()

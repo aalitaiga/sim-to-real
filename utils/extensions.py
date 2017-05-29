@@ -3,6 +3,7 @@ import logging
 from blocks.extensions import SimpleExtension
 import numpy as np
 from visdom import Visdom
+import skvideo.io
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,9 @@ class GenerateSamples(SimpleExtension):
         batch = next(self.main_loop.data_stream.get_epoch_iterator(as_dict=True))
         image_source, image_target = batch['image_source'], batch['image_target']
         image_generated = self.theano_func(image_source)[-2]
+        image_generated = (image_generated[:,0,:,:,:] + 1) * 127.5
+        image_generated = image_generated.astype('uint8')
+        image_generated = np.transpose(image_generated, (0, 2, 3, 1))
         # import ipdb; ipdb.set_trace()
         np.savez(
             self.file_name+'/epoch_'+epochs_done,
@@ -77,3 +81,4 @@ class GenerateSamples(SimpleExtension):
             generated=image_generated,
             target=image_target
         )
+        skvideo.io.vwrite(self.file_name+'/epoch_'+epochs_done+'.mp4', image_generated)
