@@ -3,10 +3,14 @@ from blocks.bricks import application, lazy, Linear, Initializable
 from blocks.bricks.recurrent import LSTM, recurrent
 # from blocks.bricks.wrappers import WithExtraDims
 from blocks.utils import shared_floatx_nans, shared_floatx_zeros
-from blocks.roles import add_role, WEIGHT, INITIAL_STATE, BIAS
-from theano import tensor
+from blocks.roles import add_role, WEIGHT, INITIAL_STATE
+from theano import tensor as T
+from theano.sandbox.rng_mrg import MRG_RandomStreams
 
 from models.conv import Convolutional, ConvolutionalTranspose
+
+seed = 24
+theano_rng = MRG_RandomStreams(seed)
 
 class ConvLSTM(LSTM):
     """ Convolutional LSTM """
@@ -15,7 +19,7 @@ class ConvLSTM(LSTM):
     def __init__(self, filter_size, num_filters, num_channels, batch_size=None,
         image_size=(None,None), step=(1,1), border_mode='half', tied_biases=None,
         activation=None, gate_activation=None, convolution_type='conv',
-        weightnorm=False, **kwargs):
+        weightnorm=False, zoneout_states=1, zoneout_cells=1, **kwargs):
         self.filter_size = filter_size
         self.num_filters = num_filters
         self.num_channels = num_channels
@@ -23,6 +27,10 @@ class ConvLSTM(LSTM):
         self.batch_size = batch_size
         self.border_mode = border_mode
         self.tied_biases = tied_biases
+
+        self.zoneout_states = zoneout_states
+        self.zoneout_cells = zoneout_cells
+        self.zoneout = True if zoneout_states < 1 or zoneout_cells < 1 else False
 
         if convolution_type == 'conv':
             conv = Convolutional
@@ -114,6 +122,13 @@ class ConvLSTM(LSTM):
             slice_last(activation, 3) + next_cells * self.W_cell_to_out)
         next_states = out_gate * self.activation.apply(next_cells)
 
+        # if self.zoneout:
+        #     zoneout_states = theano_rng.binomial(p=self.zoneout_states, size=(self.num_filters,) + self.feature_map_size, dtype='float32')
+        #     zoneout_cells = theano_rng.binomial(p=self.zoneout_cells, size=(self.num_filters,) + self.feature_map_size, dtype='float32')
+        #
+        #     next_states = next_states * zoneout_states + (1 - zoneout_states) * states
+        #     next_cells = next_cells * zoneout_cells + (1 - zoneout_cells) * cells
+
         if mask:
             next_states = (mask[:, None] * next_states +
                            (1 - mask[:, None]) * states)
@@ -124,8 +139,12 @@ class ConvLSTM(LSTM):
 
     @application(outputs=apply.states)
     def initial_states(self, batch_size, *args, **kwargs):
-        return [tensor.repeat(self.initial_state_[None, :, :, :], batch_size, 0),
-                tensor.repeat(self.initial_cells[None, :, :, :], batch_size, 0)]
+        return [T.repeat(self.initial_state_[None, :, :, :], batch_size, 0),
+                T.repeat(self.initial_cells[None, :, :, :], batch_size, 0)]
+
+    def _initialize(self):
+        for weights in self.parameters[:4]:
+            self.weights_init.initialize(weights, self.rng)
 
 
 class Linear2(Linear):
@@ -140,17 +159,17 @@ class Linear2(Linear):
         """Apply the linear transformation.
         Parameters
         ----------
-        input_ : :class:`~tensor.TensorVariable`
+        input_ : :class:`~T.TensorVariable`
             The input on which to apply the transformation
         Returns
         -------
-        output : :class:`~tensor.TensorVariable`
+        output : :class:`~T.TensorVariable`
             The transformed input plus optional bias
         """
         # From (time, batch, num_filters, 1, 1) to (batch, time, num_filters)
         input_ = input_.dimshuffle(1,0,2,3,4)
         input_ = input_.reshape([self.batch_size, self.input_dim])
-        output = tensor.dot(input_, self.W)
+        output = T.dot(input_, self.W)
         if getattr(self, 'use_bias', True):
             output += self.b
         return output

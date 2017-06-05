@@ -5,6 +5,7 @@ from theano import tensor as T
 
 from blocks.bricks import LinearLike
 from blocks.bricks.base import application, Brick, lazy
+from blocks.initialization import Constant
 from blocks.roles import add_role, FILTER, BIAS, WEIGHT
 from blocks.utils import shared_floatx_nans
 
@@ -106,8 +107,9 @@ class Convolutional(LinearLike):
             self.add_auxiliary_variable(b.norm(2), name='b_norm')
         if self.weightnorm:
             g = shared_floatx_nans((self.num_filters,), name='g')
-            self.parameters.append(g)
             add_role(g, WEIGHT)
+            self.parameters.append(g)
+
 
     @application(inputs=['input_'], outputs=['output'])
     def apply(self, input_):
@@ -134,9 +136,9 @@ class Convolutional(LinearLike):
             input_shape += self.image_size
 
         if self.weightnorm:
-            w_norm = T.sqrt(T.sum(T.square(self.W),axis=(1,2,3))).dimshuffle(0,'x','x','x')
+            w_norm = T.sqrt(T.sum(T.square(self.W),axis=(1,2,3)))
             output = self.conv2d_impl(
-                input_, self.W * (self.g / w_norm),
+                input_, self.W * (self.g / w_norm).dimshuffle(0,'x','x','x'),
                 input_shape=input_shape,
                 subsample=self.step,
                 border_mode=self.border_mode,
@@ -181,7 +183,7 @@ class Convolutional(LinearLike):
     def initialize(self):
         self._initialize()
         if self.weightnorm:
-            self.weights_init.initialize(self.parameters[2], self.rng)
+            Constant(1).initialize(self.parameters[2], self.rng)
 
 
 class ConvolutionalTranspose(Convolutional):

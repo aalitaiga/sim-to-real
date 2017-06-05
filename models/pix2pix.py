@@ -8,7 +8,7 @@ import sys
 from blocks.algorithms import Adam
 from blocks.bricks import Identity
 from blocks.bricks.recurrent import RecurrentStack
-from blocks.initialization import IsotropicGaussian, Constant
+from blocks.initialization import IsotropicGaussian, Constant, Orthogonal
 from fuel.streams import DataStream
 from fuel.schemes import ShuffledScheme
 from fuel.datasets.hdf5 import H5PYDataset
@@ -36,26 +36,29 @@ img_dim = 128
 image_size = [(int(img_dim / 2**i),int(img_dim / 2**i)) for i in range(int(math.log(img_dim, 2))+1)]
 step = (2,2)
 alpha = 10
+zoneout_states = 0.5
+zoneout_cells = 0.05
 assert len(num_filters) == len(image_size) == len(discriminator_num_filters)
 
 encoder_archi = [ConvLSTM(
     filter_size, num_filters[i+1], num_filters[i],
     image_size=image_size[i], step=step, border_mode='half',
-    batch_size=batch_size, name='encoder_lstm', weightnorm=True
+    batch_size=batch_size, name='encoder_lstm', weightnorm=False,
+    zoneout_cells=zoneout_cells, zoneout_states=zoneout_states
 ) for i in range(len(image_size)-1)]
 decoder_archi = [ConvLSTM(
     filter_size, num_filters[-i-1], num_filters[-i],
     image_size=image_size[-i], step=step, border_mode='half',
-    batch_size=batch_size, convolution_type='deconv', weightnorm=True,
-    name='decoder_lstm'
+    batch_size=batch_size, convolution_type='deconv', weightnorm=False,
+    name='decoder_lstm', zoneout_cells=zoneout_cells, zoneout_states=zoneout_states
 ) for i in range(1,len(image_size))]
 
 generator = RecurrentStack(
     encoder_archi + decoder_archi,
     fork_prototype=Identity(name='identity'),
+    name='generator',
     weights_init=IsotropicGaussian(std=0.05, mean=0),
-    biases_init=Constant(0.02),
-    name='generator'
+    biases_init=Constant(0.02)
 )
 
 discriminator_rnn = RecurrentStack(
@@ -63,7 +66,8 @@ discriminator_rnn = RecurrentStack(
         ConvLSTM(
             filter_size, discriminator_num_filters[i+1], discriminator_num_filters[i],
             image_size=image_size[i], step=step, border_mode='half',
-            batch_size=batch_size, weightnorm=True
+            batch_size=batch_size, weightnorm=False, zoneout_cells=zoneout_cells,
+            zoneout_states=zoneout_states
         ) for i in range(len(image_size)-1)
     ],
     fork_prototype=Identity(),
@@ -72,14 +76,14 @@ discriminator_rnn = RecurrentStack(
 linear = Linear2(
     input_dim=discriminator_num_filters[-1],
     output_dim=1, batch_size=batch_size,
-    time=60
+    time=60,
 )
 
 discriminator = Discriminator(
     discriminator_rnn,
     linear,
     weights_init=IsotropicGaussian(std=0.05, mean=0),
-    biases_init=Constant(0.02),
+    biases_init=Constant(0.02)
 )
 
 
@@ -100,11 +104,20 @@ if __name__ == '__main__':
 
     lr = 1e-4
     beta1 = 0.5
-    dropout = 0.5
+    dropout = 0
     load = False
-    noise_std = 0.2
+    noise_std = 0
 
-    gan = RecurrentCGAN(generator, discriminator, alpha=alpha)
+    gan = RecurrentCGAN(
+        generator,
+        discriminator,
+        alpha=alpha,
+        # weights_init=IsotropicGaussian(std=0.05, mean=0),
+        # biases_init=Constant(0.02)
+    )
+    gan.push_allocation_config()
+    # gan.generator.weights_init = Orthogonal()
+    # gan.discriminator.weights_init = Orthogonal()
     gan.initialize()
 
     robot_data = H5PYDataset(
@@ -144,43 +157,42 @@ if __name__ == '__main__':
         cg = apply_dropout(cg, dropout_inputs, dropout)
 
     if noise_std > 0:
-        noisy_inputs = []
+        noisy_inputs = VariableFilter(name='discriminator_apply_input_')(cg.variables)
         cg = apply_noise(cg, noisy_inputs, noise_std)
 
     model = Model(cg.outputs)
     auxiliary_variables = [u for u in model.auxiliary_variables if 'norm' not in u.name]
     # auxiliary_variables.extend(VariableFilter(theano_name='gradient_penalty')(model.variables))
     auxiliary_variables.extend(VariableFilter(theano_name='abs_error')(model.variables))
+    auxiliary_variables[0].name = 'data_accuracy'
+    auxiliary_variables[1].name = 'sample_accuracy'
+    g_variables = [i.mean() for i in cg.parameters if i.name == 'g']
+    for i, g in enumerate(g_variables):
+        g.name = 'g_{}'.format(i)
     step_rule = Adam(learning_rate=lr, beta1=beta1)
     # discriminator_algo, generator_algo = gan.algorithm(discriminator_loss, generator_loss, step_rule, step_rule)
     algorithm = gan.algorithm(discriminator_loss, generator_loss, step_rule, step_rule)
 
     extensions = [
-        FinishAfter(after_n_epochs=0),
+        FinishAfter(after_n_epochs=300),
         TrainingDataMonitoring(
             model.outputs+auxiliary_variables,
             # prefix="train",
             after_batch=True),
         ProgressBar(),
-        VisdomExt([[
-            'discriminator_loss',
-            'generator_loss'
-        ], [
-            # 'gradient_penalty',
-            'abs_error'
-        ], [
-            'data_accuracy', 'sample_accuracy'
-        ]], [dict(title='WGAN losses', xlabel='iterations', ylabel='value`'),
-            dict(title='Other costs', xlabel='iterations', ylabel='value'),
-            dict(title='Discriminator accuracies', xlabel='iterations', ylabel='probability')],
+        VisdomExt([['discriminator_loss', 'generator_loss', 'abs_error'],
+        ['data_accuracy', 'sample_accuracy'],
+        ], [dict(title='Generative model losses', xlabel='iterations', ylabel='value`'),
+            # dict(title='Other costs', xlabel='iterations', ylabel='value'),
+            dict(title='Discriminator accuracies', xlabel='iterations', ylabel='probability'),],
             {'env': 'WGAN_{}'.format(datetime.now())}, after_batch=True),
-        # Load('Tmp/alitaiga/sim-to-real/pix2pix.tar'),
         Checkpoint(path+'/pix2pix.tar', every_n_epochs=2, after_training=True,
                    use_cpickle=True),
-        GenerateSamples(
-            theano.function([input_], gan.generator.apply(img_source)),
-            path, every_n_epochs=3),
-        Printing()
+        Printing(),
+        # Load('Tmp/alitaiga/sim-to-real/pix2pix.tar'),
+        # GenerateSamples(
+        #     theano.function([input_], gan.generator.apply(img_source)),
+        #     path, every_n_epochs=3),
     ]
 
     main_loop = MainLoop(
