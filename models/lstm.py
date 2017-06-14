@@ -19,7 +19,7 @@ class ConvLSTM(LSTM):
     def __init__(self, filter_size, num_filters, num_channels, batch_size=None,
         image_size=(None,None), step=(1,1), border_mode='half', tied_biases=None,
         activation=None, gate_activation=None, convolution_type='conv',
-        weightnorm=False, zoneout_states=1, zoneout_cells=1, **kwargs):
+        weightnorm=False, zoneout_states=1, zoneout_cells=1, skip=False, **kwargs):
         self.filter_size = filter_size
         self.num_filters = num_filters
         self.num_channels = num_channels
@@ -31,6 +31,8 @@ class ConvLSTM(LSTM):
         self.zoneout_states = zoneout_states
         self.zoneout_cells = zoneout_cells
         self.zoneout = True if zoneout_states < 1 or zoneout_cells < 1 else False
+
+        self.skip = skip
 
         if convolution_type == 'conv':
             conv = Convolutional
@@ -104,11 +106,14 @@ class ConvLSTM(LSTM):
             self.W_cell_to_out, self.initial_state_, self.initial_cells
         ])
 
-    @recurrent(sequences=['inputs', 'mask'], states=['states', 'cells'],
+    @recurrent(sequences=['inputs', 'skip', 'mask'], states=['states', 'cells'],
                contexts=[], outputs=['states', 'cells'])
-    def apply(self, inputs, states, cells, mask=None):
+    def apply(self, inputs, states, cells, skip=None, mask=None):
         def slice_last(x, no):
             return x[:, no*self.num_filters: (no+1)*self.num_filters, :, :]
+
+        if self.skip:
+            inputs = T.concatenate([inputs, skip], axis=1)
 
         activation = self.input_convolution.apply(inputs) + self.state_convolution.apply(states)
         in_gate = self.gate_activation.apply(
@@ -125,7 +130,7 @@ class ConvLSTM(LSTM):
         # if self.zoneout:
         #     zoneout_states = theano_rng.binomial(p=self.zoneout_states, size=(self.num_filters,) + self.feature_map_size, dtype='float32')
         #     zoneout_cells = theano_rng.binomial(p=self.zoneout_cells, size=(self.num_filters,) + self.feature_map_size, dtype='float32')
-        #
+
         #     next_states = next_states * zoneout_states + (1 - zoneout_states) * states
         #     next_cells = next_cells * zoneout_cells + (1 - zoneout_cells) * cells
 
@@ -142,8 +147,13 @@ class ConvLSTM(LSTM):
         return [T.repeat(self.initial_state_[None, :, :, :], batch_size, 0),
                 T.repeat(self.initial_cells[None, :, :, :], batch_size, 0)]
 
+    def get_dim(self, name):
+        if name == 'skip':
+            return self.dim * 4
+        return super(ConvLSTM, self).get_dim(name)
+
     def _initialize(self):
-        for weights in self.parameters[:4]:
+        for weights in self.parameters[:3]:
             self.weights_init.initialize(weights, self.rng)
 
 

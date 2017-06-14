@@ -36,15 +36,15 @@ rec1_imgs = sorted(rec1_imgs, key=func)
 rec2_imgs = glob('data/ergo-rec-2/*.jpg')
 rec2_imgs = sorted(rec2_imgs, key=func)
 
-time = 60
+time = 1
 size = len(rec1_imgs) / time
 
-f = h5py.File('/u/alitaiga/repositories/sim-to-real/robot_data.h5', mode='w')
-# f = h5py.File('/data/lisatmp3/alitaiga/sim-to-real/robot_data.h5', mode='w')
-image_source = f.create_dataset('image_source', (size, time, 3, img_dim, img_dim), dtype='float32')
-image_target = f.create_dataset('image_target', (size, time, 3, img_dim, img_dim), dtype='float32')
-commands = f.create_dataset('commands', (size, time, 7), dtype='float32')
-state = f.create_dataset('states', (size, time, 42), dtype='float32')
+# f = h5py.File('/u/alitaiga/repositories/sim-to-real/robot_data.h5', mode='w')
+f = h5py.File('/data/lisatmp3/alitaiga/sim-to-real/paired_data.h5', mode='w')
+image_source = f.create_dataset('image_source', (size, 3, img_dim, img_dim), dtype='float32')
+image_target = f.create_dataset('image_target', (size, 3, img_dim, img_dim), dtype='float32')
+commands = f.create_dataset('commands', (size, 7), dtype='float32')
+state = f.create_dataset('states', (size, 42), dtype='float32')
 
 split_dict = {
     'train': {
@@ -56,36 +56,29 @@ split_dict = {
 }
 f.attrs['split'] = H5PYDataset.create_split_array(split_dict)
 
-flush = 40
+flush = 500
 
-l1, l2, cmds, states = [], [], [], []
 count = 0
-i = 0
 
 for img1, img2 in zip(rec1_imgs, rec2_imgs):
     assert func(img1) == func(img2)
     im1, im2 = imread(img1), imread(img2)
     ind = func(img1)
-    l1.append(im1.reshape(1,3,img_dim,img_dim))
-    l2.append(im2.reshape(1,3,img_dim,img_dim))
-    cmds.append(cmds_rec1.iloc[ind].values)
-    states.append(np.concatenate([
+    # l1.append(im1.reshape(3,img_dim,img_dim))
+    # l2.append(im2.reshape(3,img_dim,img_dim))
+    # cmds.append(cmds_rec1.iloc[ind].values)
+    # states.append(np.concatenate([
+    #     pos_rec1.iloc[0].values, vel_rec1.iloc[0].values
+    # ], axis=0))
+
+    image_source[count, :, :, :] = im1.reshape(3,img_dim,img_dim)
+    image_target[count, :, :, :] = im2.reshape(3,img_dim,img_dim)
+    state[count, :] = np.concatenate([
         pos_rec1.iloc[0].values, vel_rec1.iloc[0].values
-    ], axis=0))
-    i += 1
+    ], axis=0)
+    commands[count, :] = cmds_rec1.iloc[ind].values
+    count += 1
 
-    if len(l1) == time:
-        array1 = np.concatenate(l1, axis=0)
-        array2 = np.concatenate(l2, axis=0)
-        array_cmds = np.vstack(cmds)
-        array_states = np.vstack(states)
-
-        image_source[count, :, :, :, :] = array1
-        image_target[count, :, :, :, :] = array2
-        state[count, :, :] = array_states
-        commands[count, :, :] = array_cmds
-        l1, l2, cmds, states = [], [], [], []
-        count += 1
 
     if count % flush == 0 and count != 0:
         f.flush()

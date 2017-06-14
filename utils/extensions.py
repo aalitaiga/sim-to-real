@@ -13,7 +13,7 @@ class VisdomExt(SimpleExtension):
     r""" Extension doing visdom plotting.
     """
     def __init__(self, channels, plot_options=[],
-                visdom_kwargs={}, **kwargs):
+                visdom_kwargs={}, viz=None, **kwargs):
         self.viz = Visdom(**visdom_kwargs)
         self.list_names = channels
         self.env = visdom_kwargs.get('env', 'main')
@@ -61,10 +61,11 @@ class VisdomExt(SimpleExtension):
 class GenerateSamples(SimpleExtension):
     """ Extension to generate samples during training """
 
-    def __init__(self, theano_func, file_name='', **kwargs):
+    def __init__(self, theano_func, file_name='', viz=None, **kwargs):
         super(GenerateSamples, self).__init__(**kwargs)
         self.file_name = file_name
         self.theano_func = theano_func
+        self.viz = viz
 
     def do(self, which_callback, *args):
         epochs_done = str(self.main_loop.log.status['epochs_done'])
