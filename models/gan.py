@@ -1,3 +1,5 @@
+from __future__ import division
+
 from collections import OrderedDict
 
 from blocks.algorithms import GradientDescent, Restrict, CompositeRule
@@ -189,14 +191,28 @@ class RecurrentCGAN(GAN):
         return discriminator_loss, generator_loss
 
     @application(inputs=['source_sequence', 'target_sequence'], outputs=['discriminator_loss', 'generator_loss'])
+    def lsgan_losses(self, source_sequence, target_sequence, application_call):
+        # TODO: add rewards later
+        target_sequence_generated = self.generator.apply(source_sequence)[-2]
+
+        data_preds, sample_preds = self.get_predictions(target_sequence, target_sequence_generated)
+
+        discriminator_loss = 0.5 * T.sqr(data_preds - 1).mean() + T.sqr(sample_preds).mean()
+
+        abs_error = self.alpha * abs(target_sequence - target_sequence_generated).mean()
+        abs_error.name = 'abs_error'
+        generator_loss = 1/2 * T.sqr(sample_preds - 1) .mean() + abs_error
+        return discriminator_loss, generator_loss
+
+    @application(inputs=['source_sequence', 'target_sequence'], outputs=['discriminator_loss', 'generator_loss'])
     def wgan_losses(self, source_sequence, target_sequence, application_call):
         # TODO: add rewards later
         target_sequence_generated = self.generator.apply(source_sequence)[-2]
         data_preds, sample_preds = self.get_predictions(target_sequence, target_sequence_generated)
 
-        abs_error = abs(target_sequence - target_sequence_generated).mean()
+        abs_error = self.alpha * abs(target_sequence - target_sequence_generated).mean()
         abs_error.name = 'abs_error'
-        generator_loss = -sample_preds.mean() + self.alpha * abs_error
+        generator_loss = -sample_preds.mean() + abs_error
 
         # Compute the WGAN gradient penalty
         eps = theano_rng.uniform(size=(target_sequence.shape[0],1,1,1,1))

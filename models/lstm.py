@@ -107,7 +107,7 @@ class ConvLSTM(LSTM):
         ])
 
     @recurrent(sequences=['inputs', 'skip', 'mask'], states=['states', 'cells'],
-               contexts=[], outputs=['states', 'cells'])
+               contexts=[], outputs=['states', 'cells', 'outputs'])
     def apply(self, inputs, states, cells, skip=None, mask=None):
         def slice_last(x, no):
             return x[:, no*self.num_filters: (no+1)*self.num_filters, :, :]
@@ -126,13 +126,14 @@ class ConvLSTM(LSTM):
         out_gate = self.gate_activation.apply(
             slice_last(activation, 3) + next_cells * self.W_cell_to_out)
         next_states = out_gate * self.activation.apply(next_cells)
+        outputs = next_states
 
-        # if self.zoneout:
-        #     zoneout_states = theano_rng.binomial(p=self.zoneout_states, size=(self.num_filters,) + self.feature_map_size, dtype='float32')
-        #     zoneout_cells = theano_rng.binomial(p=self.zoneout_cells, size=(self.num_filters,) + self.feature_map_size, dtype='float32')
+        if self.zoneout:
+            zoneout_states = theano_rng.binomial(p=self.zoneout_states, size=(self.num_filters,) + self.feature_map_size, dtype='float32')
+            zoneout_cells = theano_rng.binomial(p=self.zoneout_cells, size=(self.num_filters,) + self.feature_map_size, dtype='float32')
 
-        #     next_states = next_states * zoneout_states + (1 - zoneout_states) * states
-        #     next_cells = next_cells * zoneout_cells + (1 - zoneout_cells) * cells
+            next_states = next_states * zoneout_states + (1 - zoneout_states) * states
+            next_cells = next_cells * zoneout_cells + (1 - zoneout_cells) * cells
 
         if mask:
             next_states = (mask[:, None] * next_states +
@@ -140,7 +141,7 @@ class ConvLSTM(LSTM):
             next_cells = (mask[:, None] * next_cells +
                           (1 - mask[:, None]) * cells)
 
-        return next_states, next_cells
+        return next_states, next_cells, outputs
 
     @application(outputs=apply.states)
     def initial_states(self, batch_size, *args, **kwargs):
@@ -150,6 +151,8 @@ class ConvLSTM(LSTM):
     def get_dim(self, name):
         if name == 'skip':
             return self.dim * 4
+        if name == 'outputs':
+            return self.dim
         return super(ConvLSTM, self).get_dim(name)
 
     def _initialize(self):
