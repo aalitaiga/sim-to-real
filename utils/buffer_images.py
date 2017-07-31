@@ -29,13 +29,13 @@ class FIFO(object):
     def clear(self):
         self.queue = list()
 
-class Buffer(object):
+class BufferImages(object):
     """A replay memory consisting of circular buffers for observed images,
 actions, and rewards.
 
     """
     def __init__(self, image_dim, observation_dim, action_dim,
-            rng, max_steps=1000):
+            rng, max_steps=100000):
         """Construct a DataSet.
 
         Arguments:
@@ -56,13 +56,13 @@ actions, and rewards.
         self.rng = rng
 
         # Allocate the circular buffers and indices.
-        self.images = np.zeros((max_steps, *image_dim), dtype='int8')
+        self.images = np.zeros((max_steps,) + image_dim, dtype='int8')
         self.observations = np.zeros((max_steps, observation_dim), dtype=floatX)
         self.actions = np.zeros((max_steps, action_dim), dtype=floatX)
-        self.s_transition_img = np.zeros((max_steps, *image_dim), dtype='int8')
-        self.r_transition_img = np.zeros((max_steps, *image_dim), dtype='int8')
-        self.s_transition_obs = np.zeros((max_steps), dtype=floatX)
-        self.r_transition_obs = np.zeros((max_steps), dtype=floatX)
+        self.s_transition_img = np.zeros((max_steps,) + image_dim, dtype='int8')
+        self.r_transition_img = np.zeros((max_steps,) + image_dim, dtype='int8')
+        self.s_transition_obs = np.zeros((max_steps, observation_dim), dtype=floatX)
+        self.r_transition_obs = np.zeros((max_steps, observation_dim), dtype=floatX)
         self.s_rewards = np.zeros(max_steps, dtype=floatX)
         self.r_rewards = np.zeros(max_steps, dtype=floatX)
         # self.s_terminal = np.zeros(max_steps, dtype='bool')
@@ -121,11 +121,11 @@ actions, and rewards.
 
         """
         # Allocate the response.
-        images = np.zeros((batch_size, *self.image_dim), dtype='int8')
+        images = np.zeros((batch_size,) + self.image_dim, dtype='int8')
         observations = np.zeros((batch_size, self.observation_dim), dtype=floatX)
         actions = np.zeros((batch_size, self.action_dim), dtype=floatX)
-        s_transition_img = np.zeros((batch_size, *self.image_dim), dtype='int8')
-        r_transition_img = np.zeros((batch_size, *self.image_dim), dtype='int8')
+        s_transition_img = np.zeros((batch_size,) + self.image_dim, dtype='int8')
+        r_transition_img = np.zeros((batch_size,) + self.image_dim, dtype='int8')
         s_transition_obs = np.zeros((batch_size, self.observation_dim), dtype=floatX)
         r_transition_obs = np.zeros((batch_size, self.observation_dim), dtype=floatX)
         s_rewards = np.zeros((batch_size), dtype=floatX)
@@ -198,11 +198,11 @@ def buffer_to_h5(buffer_, split=0.9, name='/Tmp/alitaiga/sim-to-real/gen_data.h5
     action_dim = buffer_.action_dim
 
     f = h5py.File(name, mode='w')
-    images = f.create_dataset('images', (size_train+size_val, *image_dim), dtype='int8')
+    images = f.create_dataset('images', (size_train+size_val,) + image_dim, dtype='int8')
     observations = f.create_dataset('obs', (size_train+size_val, observation_dim), dtype='float32')
     actions = f.create_dataset('actions', (size_train+size_val, action_dim), dtype='float32')
-    s_transition_img = f.create_dataset('s_transition_img', (size_train+size_val, *image_dim), dtype='int8')
-    s_transition_img = f.create_dataset('r_transition_img', (size_train+size_val, *image_dim), dtype='int8')
+    s_transition_img = f.create_dataset('s_transition_img', (size_train+size_val,) + image_dim, dtype='int8')
+    s_transition_img = f.create_dataset('r_transition_img', (size_train+size_val) + image_dim, dtype='int8')
     s_transition_obs = f.create_dataset('s_transition_obs', (size_train+size_val, observation_dim), dtype='float32')
     s_transition_obs = f.create_dataset('r_transition_obs', (size_train+size_val, observation_dim), dtype='float32')
     reward_sim = f.create_dataset('reward_sim', (size_train+size_val,), dtype='float32')
@@ -210,7 +210,7 @@ def buffer_to_h5(buffer_, split=0.9, name='/Tmp/alitaiga/sim-to-real/gen_data.h5
 
     split_dict = {
         'train': {
-            'images': (0, size_train)
+            'images': (0, size_train),
             'observations': (0, size_train),
             'actions': (0, size_train),
             's_transition_img': (0, size_train),
@@ -221,7 +221,7 @@ def buffer_to_h5(buffer_, split=0.9, name='/Tmp/alitaiga/sim-to-real/gen_data.h5
             'reward_real': (0, size_train)
         },
         'valid': {
-            'images': (size_train, size_train+size_val)
+            'images': (size_train, size_train+size_val),
             'observations': (size_train, size_train+size_val),
             'actions': (size_train, size_train+size_val),
             's_transition_img': (size_train, size_train+size_val),
