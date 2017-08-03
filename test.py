@@ -32,7 +32,7 @@ image_dim = (128, 128, 3)
 observation_dim = int(env.observation_space[0].shape[0])
 action_dim = int(env.action_space.shape[0])
 rng = np.random.RandomState(seed=22)
-max_steps = 10000
+max_steps = 100000
 buffer_ = Buffer(image_dim, observation_dim, action_dim, rng, max_steps)
 
 def match_env(ev1, ev2):
@@ -47,7 +47,7 @@ while not buffer_.full:
     obs2 = env2.reset()
     match_env(env, env2)
 
-    for t in range(100):
+    for t in range(150):
         # env.render()
         # env2.render()
 
@@ -63,7 +63,7 @@ while not buffer_.full:
         match_env(env, env2)
         # import ipdb; ipdb.set_trace()
 
-        if len(buffer_) % 100 == 0:
+        if len(buffer_) % 1000 == 0:
             print("Buffer currently filled at: {}%".format(int(len(buffer_)*100./max_steps)))
 
         if done:
