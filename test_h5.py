@@ -36,21 +36,20 @@ image_dim = (128, 128, 3)
 observation_dim = int(env.observation_space[0].shape[0])
 action_dim = int(env.action_space.shape[0])
 rng = np.random.RandomState(seed=22)
-max_steps = 11000
+max_steps = 110000
 split = 0.91
-buffer_ = Buffer(image_dim, observation_dim, action_dim, rng, max_steps)
 
 # Creating the h5 dataset
 name = '/Tmp/alitaiga/sim-to-real/gen_data.h5'
 assert 0 < split <= 1
-size_train = math.floor(buffer_.size * split)
-size_val = math.ceil(buffer_.size * (1 - split))
+size_train = math.floor(max_steps * split)
+size_val = math.ceil(max_steps * (1 - split))
 f = h5py.File(name, mode='w')
 images = f.create_dataset('images', (size_train+size_val,) + image_dim, dtype='uint8')
 observations = f.create_dataset('obs', (size_train+size_val, observation_dim), dtype='float32')
 actions = f.create_dataset('actions', (size_train+size_val, action_dim), dtype='float32')
 s_transition_img = f.create_dataset('s_transition_img', (size_train+size_val,) + image_dim, dtype='uint8')
-r_transition_img = f.create_dataset('r_transition_img', (size_train+size_val) + image_dim, dtype='uint8')
+r_transition_img = f.create_dataset('r_transition_img', (size_train+size_val,) + image_dim, dtype='uint8')
 s_transition_obs = f.create_dataset('s_transition_obs', (size_train+size_val, observation_dim), dtype='float32')
 r_transition_obs = f.create_dataset('r_transition_obs', (size_train+size_val, observation_dim), dtype='float32')
 reward_sim = f.create_dataset('reward_sim', (size_train+size_val,), dtype='float32')
@@ -59,7 +58,7 @@ reward_real = f.create_dataset('reward_real', (size_train+size_val,), dtype='flo
 split_dict = {
     'train': {
         'images': (0, size_train),
-        'observations': (0, size_train),
+        'obs': (0, size_train),
         'actions': (0, size_train),
         's_transition_img': (0, size_train),
         'r_transition_img': (0, size_train),
@@ -70,7 +69,7 @@ split_dict = {
     },
     'valid': {
         'images': (size_train, size_train+size_val),
-        'observations': (size_train, size_train+size_val),
+        'obs': (size_train, size_train+size_val),
         'actions': (size_train, size_train+size_val),
         's_transition_img': (size_train, size_train+size_val),
         'r_transition_img': (size_train, size_train+size_val),
@@ -117,8 +116,8 @@ while i < max_steps:
         match_env(env, env2)
         i += 1
 
-        if i % 100 == 0:
-            print("Buffer currently filled at: {}%".format(int(len(buffer_)*100./max_steps)))
+        if i % 5000 == 0:
+            print("Buffer currently filled at: {}%".format(int(i*100./max_steps)))
 
         if i % 1500 == 0:
             f.flush()
@@ -128,4 +127,4 @@ while i < max_steps:
             break
 
 f.close()
-print('Created h5 dataset with {} elements'.format(max_steps)
+print('Created h5 dataset with {} elements'.format(max_steps))
