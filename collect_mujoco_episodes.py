@@ -41,7 +41,7 @@ episode_length = 150
 split = 0.91
 
 # Creating the h5 dataset
-name = '/tmp/mujoco_data.h5'
+name = '/tmp/mujoco_data2.h5'
 assert 0 < split <= 1
 size_train = math.floor(max_steps * split)
 size_val = math.ceil(max_steps * (1 - split))
@@ -104,6 +104,8 @@ while i < max_steps:
         new_obs, reward, done, info = env.step(action)
         new_obs2, reward2, done2, info2 = env2.step(action)
 
+        # print (j, done, new_obs[0][0])
+
         images[i, j, :, :, :] = imresize(obs[1], [128, 128, 3])
         observations[i, j, :] = obs[0]
         actions[i, j, :] = action
@@ -113,6 +115,10 @@ while i < max_steps:
         r_transition_obs[i, j, :] = new_obs2[0]
         reward_sim[i] = reward
         reward_real[i] = reward2
+
+        # we have to set the state to be the old state in the next timestep.
+        # Otherwise the old state is constant
+        obs = new_obs
 
         match_env(env, env2)
         if done2:
