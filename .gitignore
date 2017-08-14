@@ -106,3 +106,4 @@ data/ergo-rec*
 
 /mnist.py
 /viz_test.py
+.idea

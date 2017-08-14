@@ -21,9 +21,9 @@ env.env.env._init(
 env2.env.env._init(
     arm0=.12,    # length of limb 1
     arm1=.08,     # length of limb 2
-    torque0=200, # torque of joint 1
-    torque1=200,  # torque of joint 2
-    fov=50,
+    torque0=100, # torque of joint 1
+    torque1=300,  # torque of joint 2
+    fov=60,
     colors={
         "arenaBackground": ".27 .27 .81",
         "arenaBorders": "1.0 0.8 0.4",
@@ -41,7 +41,7 @@ episode_length = 150
 split = 0.91
 
 # Creating the h5 dataset
-name = '/Tmp/alitaiga/sim-to-real/mujoco_data.h5'
+name = '/tmp/mujoco_data.h5'
 assert 0 < split <= 1
 size_train = math.floor(max_steps * split)
 size_val = math.ceil(max_steps * (1 - split))
@@ -127,6 +127,6 @@ while i < max_steps:
     if i % 1500 == 0:
         f.flush()
 
-
+f.flush()
 f.close()
 print('Created h5 dataset with {} elements'.format(max_steps))
