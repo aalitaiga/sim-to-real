@@ -18,12 +18,23 @@ class MujocoSimple1Dataset(Dataset):
         return len(self.f["actions"])
 
     def __getitem__(self, idx):
-        episode = {'state_joints': self.f["obs"][idx],
+        # items:
+        # 0 - sin(joint 1 angle)
+        # 1 - sin(joint 2 angle)
+        # 2 - cos(joint 1 angle)
+        # 3 - cos(joint 2 angle)
+        # 4 - constant
+        # 5 - constant
+        # 6 - joint 1 velocity / angular momentum
+        # 7 - joint 2 velocity / angular momentum
+        # 8-10 distance fingertip to reward object
+        relevant_items = [2,3,6,7] # both angles and velocities
+        episode = {'state_joints': self.f["obs"][idx][:,relevant_items],
                   # 'state_img': 0,
                   'action': self.f["actions"][idx],
-                  'state_next_sim_joints': self.f["s_transition_obs"][idx],
+                  'state_next_sim_joints': self.f["s_transition_obs"][idx][:,relevant_items],
                   # 'state_next_sim_img':0,
-                  'state_next_real_joints': self.f["r_transition_obs"][idx],
+                  'state_next_real_joints': self.f["r_transition_obs"][idx][:,relevant_items],
                   # 'state_next_real_img': 0
                   }
 
@@ -43,9 +54,6 @@ if __name__ == '__main__':
     print (state_next_sim_joints.shape)
     print (state_next_real_joints.shape)
 
-    # print(state[30:39])
-    # print(state_next_sim_joints[30:39])
-    # print(state_next_real_joints[30:39])
-    print(state[100:110])
-    print(state_next_sim_joints[100:110])
-    print(state_next_real_joints[100:110])
+    print(state[100:103])
+    print(state_next_sim_joints[100:103])
+    print(state_next_real_joints[100:103])
