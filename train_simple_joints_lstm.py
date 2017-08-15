@@ -29,7 +29,7 @@ def makeIntoVariables(dataslice):
         requires_grad=False
     )
     if CUDA:
-        return x.cuda(), y.cuda()
+        return x.cuda()[0], y.cuda()[0]
     return x[0], y[0]  # because we have minibatch_size=1
 
 
