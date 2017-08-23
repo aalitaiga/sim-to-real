@@ -36,12 +36,12 @@ image_dim = (128, 128, 3)
 observation_dim = int(env.observation_space[0].shape[0])
 action_dim = int(env.action_space.shape[0])
 rng = np.random.RandomState(seed=22)
-max_steps = 50
+max_steps = 1000
 episode_length = 150
-split = 0.91
+split = 0.90
 
 # Creating the h5 dataset
-name = '/tmp/mujoco_data2.h5'
+name = '/Tmp/mujoco_data2.h5'
 assert 0 < split <= 1
 size_train = math.floor(max_steps * split)
 size_val = math.ceil(max_steps * (1 - split))
@@ -127,10 +127,11 @@ while i < max_steps:
 
     i += 1
 
-    if i % 5000 == 0:
+    if i % 200 == 0:
         print("Buffer currently filled at: {}%".format(int(i*100./max_steps)))
 
-    if i % 1500 == 0:
+    if i % 100 == 0:
+        print ("{} done".format(i))
         f.flush()
 
 f.flush()
