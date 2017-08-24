@@ -99,7 +99,7 @@ for epoch_idx in np.arange(EPOCHS):
             loss_episode += loss.data.cpu()[0]
             loss.backward(retain_variables=True)
 
-        optimizer.step()
+            optimizer.step()
 
         diff_episode = torch.sum(torch.pow(x.data - y.data, 2))
         printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len(x))

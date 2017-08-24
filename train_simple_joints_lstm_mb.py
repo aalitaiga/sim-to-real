@@ -88,16 +88,21 @@ for epoch_idx in np.arange(EPOCHS):
         loss_episode = 0
         optimizer.zero_grad()
 
+        loss = autograd.Variable(torch.zeros(1))
+        if CUDA:
+            loss = loss.cuda()
+
         # iterate over episode frames
         for frame_idx in np.arange(len(x)):
             # x_frame = x[frame_idx]
             # y_frame = y[frame_idx]
 
             prediction = net.forward(x[frame_idx])
-            loss = loss_function(prediction, y[frame_idx].view(1, -1))
+            loss += loss_function(prediction, y[frame_idx].view(1, -1))
 
             loss_episode += loss.data.cpu()[0]
-            loss.backward(retain_variables=True)
+        
+        loss.backward(retain_variables=True)
 
         optimizer.step()
 
