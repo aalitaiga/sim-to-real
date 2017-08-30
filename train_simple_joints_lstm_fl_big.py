@@ -20,6 +20,10 @@ net = LstmSimpleNet()
 if CUDA:
     net.cuda()
 
+if TRAIN:
+    print ("STARTING IN TRAINING MODE")
+else:
+    print ("STARTING IN VALIDATION MODE")
 
 def makeIntoVariables(dataslice):
     x, y = autograd.Variable(
@@ -71,7 +75,8 @@ def saveModel(state, epoch, epoch_loss, epoch_diff, is_best):
 
 
 loss_function = nn.MSELoss()
-optimizer = optim.Adam(net.parameters())
+if TRAIN:
+    optimizer = optim.Adam(net.parameters())
 
 loss_history = [9999999] # very high loss because loss can't be empty for min()
 
@@ -87,7 +92,8 @@ for epoch_idx in np.arange(EPOCHS):
         net.hidden = net.init_hidden()
 
         loss_episode = 0
-        optimizer.zero_grad()
+        if TRAIN:
+            optimizer.zero_grad()
 
         # iterate over episode frames
         for frame_idx in np.arange(len(x)):
@@ -98,9 +104,11 @@ for epoch_idx in np.arange(EPOCHS):
             loss = loss_function(prediction, y[frame_idx].view(1, -1))
 
             loss_episode += loss.data.cpu()[0]
-            loss.backward(retain_variables=True)
+            if TRAIN:
+                loss.backward(retain_variables=True)
 
-        optimizer.step()
+        if TRAIN:
+            optimizer.step()
 
         loss.detach()
         net.hidden[0].detach()
@@ -113,11 +121,14 @@ for epoch_idx in np.arange(EPOCHS):
         diff_epoch += diff_episode
 
     printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch)
-    saveModel(
-        state=net.state_dict(),
-        epoch=epoch_idx,
-        epoch_loss=loss_epoch,
-        epoch_diff=diff_epoch,
-        is_best=(loss_epoch<min(loss_history))
-    )
-    loss_history.append(loss_epoch)
+    if TRAIN:
+        saveModel(
+            state=net.state_dict(),
+            epoch=epoch_idx,
+            epoch_loss=loss_epoch,
+            epoch_diff=diff_epoch,
+            is_best=(loss_epoch<min(loss_history))
+        )
+        loss_history.append(loss_epoch)
+    else:
+        break
