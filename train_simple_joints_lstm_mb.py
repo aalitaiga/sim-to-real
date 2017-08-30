@@ -92,6 +92,10 @@ for epoch_idx in np.arange(EPOCHS):
         if CUDA:
             loss = loss.cuda()
 
+        loss.detach()
+        net.hidden[0].detach()
+        net.hidden[1].detach()
+
         # iterate over episode frames
         for frame_idx in np.arange(len(x)):
             # x_frame = x[frame_idx]
