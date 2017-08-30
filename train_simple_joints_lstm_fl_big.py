@@ -73,12 +73,19 @@ def saveModel(state, epoch, epoch_loss, epoch_diff, is_best):
     if is_best:
         shutil.copyfile(MODEL_PATH, MODEL_PATH_BEST)
 
+def loadModel():
+    checkpoint = torch.load(MODEL_PATH_BEST)
+    net.load_state_dict(checkpoint['state_dict'])
+
 
 loss_function = nn.MSELoss()
 if TRAIN:
     optimizer = optim.Adam(net.parameters())
 
 loss_history = [9999999] # very high loss because loss can't be empty for min()
+
+if not TRAIN:
+    loadModel()
 
 for epoch_idx in np.arange(EPOCHS):
 
