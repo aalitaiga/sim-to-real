@@ -10,7 +10,7 @@ from simple_joints_lstm.mujoco_simple1_dataset import MujocoSimple1Dataset
 from simple_joints_lstm.mujoco_traintest_dataset import MujocoTraintestDataset
 from simple_joints_lstm.params import *
 
-dataset = MujocoTraintestDataset(DATASET_PATH)
+dataset = MujocoTraintestDataset(DATASET_PATH, for_training=TRAIN)
 
 # batch size has to be 1, otherwise the LSTM doesn't know what to do
 dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
