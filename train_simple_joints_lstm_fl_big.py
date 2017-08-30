@@ -63,9 +63,10 @@ def printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch):
     ))
 
 
-def saveModel(state, episode_idx, loss_epoch, diff_epoch, is_best):
+def saveModel(state, epoch, loss_epoch, diff_epoch, is_best, episode_idx):
     torch.save({
-        "epoch": episode_idx,
+        "epoch": epoch,
+        "episodes": episode_idx+1,
         "state_dict": state,
         "epoch_avg_loss": float(loss_epoch) / (episode_idx + 1),
         "epoch_avg_diff": float(diff_epoch) / (episode_idx + 1)
@@ -136,8 +137,9 @@ for epoch_idx in np.arange(EPOCHS):
         saveModel(
             state=net.state_dict(),
             epoch=epoch_idx,
-            epoch_loss=loss_epoch,
-            epoch_diff=diff_epoch,
+            episode_idx=episode_idx,
+            loss_epoch=loss_epoch,
+            diff_epoch=diff_epoch,
             is_best=(loss_epoch < min(loss_history))
         )
         loss_history.append(loss_epoch)
