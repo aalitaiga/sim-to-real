@@ -6,7 +6,6 @@ from torch.utils.data import DataLoader
 
 # absolute imports here, so that you can run the file directly
 from simple_joints_lstm.lstm_simple_net import LstmSimpleNet
-from simple_joints_lstm.mujoco_simple1_dataset import MujocoSimple1Dataset
 from simple_joints_lstm.mujoco_traintest_dataset import MujocoTraintestDataset
 from simple_joints_lstm.params import *
 
@@ -21,9 +20,10 @@ if CUDA:
     net.cuda()
 
 if TRAIN:
-    print ("STARTING IN TRAINING MODE")
+    print("STARTING IN TRAINING MODE")
 else:
-    print ("STARTING IN VALIDATION MODE")
+    print("STARTING IN VALIDATION MODE")
+
 
 def makeIntoVariables(dataslice):
     x, y = autograd.Variable(
@@ -73,19 +73,23 @@ def saveModel(state, epoch, epoch_loss, epoch_diff, is_best):
     if is_best:
         shutil.copyfile(MODEL_PATH, MODEL_PATH_BEST)
 
+
 def loadModel():
     checkpoint = torch.load(MODEL_PATH_BEST)
     net.load_state_dict(checkpoint['state_dict'])
+    return "TRAINING AVG LOSS: {}" \
+           "TRAINING AVG DIFF: {}".format(
+        checkpoint["epoch_avg_loss"], checkpoint["epoch_avg_diff"])
 
 
 loss_function = nn.MSELoss()
 if TRAIN:
     optimizer = optim.Adam(net.parameters())
 
-loss_history = [9999999] # very high loss because loss can't be empty for min()
+loss_history = [9999999]  # very high loss because loss can't be empty for min()
 
 if not TRAIN:
-    loadModel()
+    old_model_string = loadModel()
 
 for epoch_idx in np.arange(EPOCHS):
 
@@ -134,8 +138,9 @@ for epoch_idx in np.arange(EPOCHS):
             epoch=epoch_idx,
             epoch_loss=loss_epoch,
             epoch_diff=diff_epoch,
-            is_best=(loss_epoch<min(loss_history))
+            is_best=(loss_epoch < min(loss_history))
         )
         loss_history.append(loss_epoch)
     else:
-        break
+        print (old_model_string)
+
