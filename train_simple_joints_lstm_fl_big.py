@@ -63,12 +63,12 @@ def printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch):
     ))
 
 
-def saveModel(state, epoch, epoch_loss, epoch_diff, is_best):
+def saveModel(state, episode_idx, loss_epoch, diff_epoch, is_best):
     torch.save({
-        "epoch": epoch,
+        "epoch": episode_idx,
         "state_dict": state,
-        "epoch_avg_loss": epoch_loss,
-        "epoch_avg_diff": epoch_diff
+        "epoch_avg_loss": float(loss_epoch) / (episode_idx + 1),
+        "epoch_avg_diff": float(diff_epoch) / (episode_idx + 1)
     }, MODEL_PATH)
     if is_best:
         shutil.copyfile(MODEL_PATH, MODEL_PATH_BEST)
@@ -77,7 +77,7 @@ def saveModel(state, epoch, epoch_loss, epoch_diff, is_best):
 def loadModel():
     checkpoint = torch.load(MODEL_PATH_BEST)
     net.load_state_dict(checkpoint['state_dict'])
-    return "TRAINING AVG LOSS: {}" \
+    return "TRAINING AVG LOSS: {}\n" \
            "TRAINING AVG DIFF: {}".format(
         checkpoint["epoch_avg_loss"], checkpoint["epoch_avg_diff"])
 
@@ -143,4 +143,5 @@ for epoch_idx in np.arange(EPOCHS):
         loss_history.append(loss_epoch)
     else:
         print (old_model_string)
+        break
 
