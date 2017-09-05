@@ -27,12 +27,12 @@ env2.env.env._init(
         "arm1": "0.2 0.6 0.2"
     }
 )
-
+# import ipdb; ipdb.set_trace()
 image_dim = (128, 128, 3)
 observation_dim = int(env.observation_space[0].shape[0])
 action_dim = int(env.action_space.shape[0])
 rng = np.random.RandomState(seed=22)
-max_steps = 100000
+max_steps = 100
 buffer_ = Buffer(image_dim, observation_dim, action_dim, rng, max_steps)
 
 def match_env(ev1, ev2):
@@ -42,11 +42,13 @@ def match_env(ev1, ev2):
         ev2.env.env.model.data.qvel.ravel()
     )
 
+s = 0
 while not buffer_.full:
     obs = env.reset()
     obs2 = env2.reset()
     match_env(env, env2)
 
+    print("Episode: {}".format(s))
     for t in range(150):
         # env.render()
         # env2.render()
@@ -54,6 +56,8 @@ while not buffer_.full:
         action = env.action_space.sample()
         new_obs, reward, done, info = env.step(action)
         new_obs2, reward2, done2, info2 = env2.step(action)
+        print(env.env.env.model.data.qpos.flat[2:])
+
         # plt.imshow(imresize(obs[1], [128, 128, 3]))
         # import ipdb; ipdb.set_trace()
         buffer_.add_sample(
@@ -69,5 +73,6 @@ while not buffer_.full:
         if done:
             # print("Episode finished after {} timesteps".format(t+1))
             break
+    s = s + 1
 
 buffer_.save('/Tmp/alitaiga/sim-to-real/gen_model_data_{}'.format(max_steps))

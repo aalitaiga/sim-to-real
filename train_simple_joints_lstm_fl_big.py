@@ -7,14 +7,14 @@ from torch.utils.data import DataLoader
 # absolute imports here, so that you can run the file directly
 from simple_joints_lstm.lstm_simple_net import LstmSimpleNet
 from simple_joints_lstm.mujoco_traintest_dataset import MujocoTraintestDataset
-from simple_joints_lstm.params import *
+from simple_joints_lstm.params_adrien import *
 
 dataset = MujocoTraintestDataset(DATASET_PATH, for_training=TRAIN)
 
-# batch size has to be 1, otherwise the LSTM doesn't know what to do
-dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
+batch_size = 16
+dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=1)
 
-net = LstmSimpleNet()
+net = LstmSimpleNet(batch_size)
 
 if CUDA:
     net.cuda()
@@ -34,9 +34,8 @@ def makeIntoVariables(dataslice):
         requires_grad=False
     )
     if CUDA:
-        return x.cuda()[0], y.cuda()[0]
-    return x[0], y[0]  # because we have minibatch_size=1
-
+        return x.cuda(), y.cuda()
+    return x, y
 
 def printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len_episode):
     print("epoch {}, episode {}, "
@@ -44,7 +43,7 @@ def printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len_epi
           "diff: {}, diff avg: {}".format(
         epoch_idx,
         episode_idx,
-        round(loss_episode, 2),
+        round(loss_episode, 4),
         round(float(loss_episode) / len_episode, 2),
         round(diff_episode, 2),
         round(float(diff_episode) / len_episode, 2)
@@ -86,13 +85,14 @@ def loadModel():
 loss_function = nn.MSELoss()
 if TRAIN:
     optimizer = optim.Adam(net.parameters())
-
-loss_history = [9999999]  # very high loss because loss can't be empty for min()
-
-if not TRAIN:
+else:
     old_model_string = loadModel()
 
-for epoch_idx in np.arange(EPOCHS):
+loss_history = [9999999]  # very high loss because loss can't be empty for min()
+# h0 = Variable(torch.randn(, 3, 20))
+# c0 = Variable(torch.randn(2, 3, 20))
+
+for epoch_idx in range(EPOCHS):
 
     loss_epoch = 0
     diff_epoch = 0
@@ -100,6 +100,11 @@ for epoch_idx in np.arange(EPOCHS):
     for episode_idx, data in enumerate(dataloader):
         x, y = makeIntoVariables(data)
 
+        # use random images before feeding real images
+        images = autograd.Variable(
+            torch.from_numpy(np.random.rand(x.size()[0], 150, 3, 128, 128).astype('float32')),
+            requires_grad=False
+        ).cuda()
         # reset hidden lstm units
         net.hidden = net.init_hidden()
 
@@ -107,29 +112,22 @@ for epoch_idx in np.arange(EPOCHS):
         if TRAIN:
             optimizer.zero_grad()
 
-        # iterate over episode frames
-        for frame_idx in np.arange(len(x)):
-            # x_frame = x[frame_idx]
-            # y_frame = y[frame_idx]
-
-            prediction = net.forward(x[frame_idx])
-            loss = loss_function(prediction, y[frame_idx].view(1, -1))
-
-            loss_episode += loss.data.cpu()[0]
-            if TRAIN:
-                loss.backward(retain_variables=True)
+        output_seq = net(x, images)
+        loss_episode = loss_function(output_seq, y)
+        loss_episode.backward()
+        loss_epi = loss_episode.data.cpu()[0]
 
         if TRAIN:
             optimizer.step()
 
-        loss.detach()
+        # loss.detach()
         net.hidden[0].detach()
         net.hidden[1].detach()
 
         diff_episode = torch.sum(torch.pow(x.data - y.data, 2))
-        printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len(x))
+        printEpisodeLoss(epoch_idx, episode_idx, loss_epi, diff_episode, len(x))
 
-        loss_epoch += loss_episode
+        loss_epoch += loss_epi
         diff_epoch += diff_episode
 
     printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch)
@@ -146,4 +144,3 @@ for epoch_idx in np.arange(EPOCHS):
     else:
         print (old_model_string)
         break
-
