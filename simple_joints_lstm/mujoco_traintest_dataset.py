@@ -13,7 +13,6 @@ class MujocoTraintestDataset(Dataset):
             for_training (bool): True if you want the training dataset, otherwise you get the testing split
         """
         super(MujocoTraintestDataset, self).__init__()
-        self.f = h5py.File(h5_file, "r")
         phase = "train"
         if not for_training:
             phase = "valid"
@@ -43,8 +42,10 @@ class MujocoTraintestDataset(Dataset):
                    # 'action': torch.from_numpy(data[0][0]),
                    'state_next_sim_joints': torch.from_numpy(data[8][0][:, relevant_items]),
                    # 'state_next_sim_img': self._totensor(data[7][0]),
-                   'state_next_real_joints': torch.from_numpy(data[4][0][:, relevant_items])
+                   'state_next_real_joints': torch.from_numpy(data[4][0][:, relevant_items]),
                    # 'state_next_real_img': self._totensor(data[3][0])
+                   'next_sim_images': torch.from_numpy(data[1][0].transpose(0,3,1,2)).float(),
+                   'next_real_images': torch.from_numpy(data[3][0].transpose(0,3,1,2)).float()
                    }
 
         self.f.close(handle)
