@@ -16,7 +16,7 @@ from simple_joints_lstm.params_adrien import *
 
 dataset = MujocoTraintestDataset(DATASET_PATH, for_training=TRAIN)
 
-batch_size = 16
+batch_size = 1
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=1)
 
 net = LstmSimpleNet(batch_size)
@@ -26,18 +26,35 @@ net.cuda()
 # python test.py --dataroot ./datasets/facades --name facades_pix2pix --model pix2pix
 # --which_model_netG unet_256 --which_direction BtoA --dataset_mode aligned --norm batch
 
+# python train.py --dataroot /Tmp/alitaiga/sim-to-real/reacher_data/AB --name reacher_pix2pix
+# --model pix2pix --which_model_netG unet_128 --which_direction AtoB --lambda_A 100
+# --dataset_mode aligned --no_lsgan --norm batch
+
+# python train.py --dataroot /Tmp/alitaiga/sim-to-real/reacher_data/
+# --name reacher_cyclegan --model cycle_gan --no_dropout
 
 opt = TestOptions().parse()
+# Cycle gan parameters
+opt.model = 'cycle_gan'
+opt.name = 'reacher_cyclegan'
+opt.dataset_mode = 'unaligned'
+opt.which_epoch = 'latest'
+opt.dataroot = '/Tmp/alitaiga/sim-to-real/reacher_data'
+opt.no_dropout = True
+
 # Change here to 'cyclegan' and 'unaligned' for cyclegan
-opt.model = 'pix2pix'
-opt.name = 'reacher_pix2pix'
-opt.dataset_mode = 'aligned'
-opt.dataroot = '/Tmp/alitaiga/sim-to-real/reacher_data/AB'
-opt.norm = 'batch'
-opt.which_direction = 'AtoB'
-opt.which_model_netG = 'unet_128'
+# opt.model = 'pix2pix'
+# opt.name = 'reacher_pix2pix'
+# opt.dataset_mode = 'aligned'
+# opt.which_epoch = 'latest'
+# opt.dataroot = '/Tmp/alitaiga/sim-to-real/reacher_data/AB'
+# opt.norm = 'batch'
+# opt.which_direction = 'AtoB'
+# opt.which_model_netG = 'unet_128'
+
+# Common to both
 opt.nThreads = 1   # test code only supports nThreads = 1
-opt.batchSize = 8  # test code only supports batchSize = 1
+opt.batchSize = 150  # test code only supports batchSize = 1
 opt.serial_batches = True  # no shuffle
 opt.no_flip = True  # no flip
 
@@ -133,14 +150,18 @@ for epoch_idx in range(EPOCHS):
             "next_sim_images",
             "next_real_images"
         ]]
-        # z = z.float()
-        z = z[0,:8,:,:,:]
-        # z = z.unsqueeze(0)
+        z = z.float()
+        z = z[0,0,:,:,:]
+        z = z.unsqueeze(0)
         z = transform(z)
 
-        out = model.netG.forward(Variable(z, volatile=True))
-        imsave('out.jpg', out.data.cpu().squeeze().permute(2,1,0).numpy())
-        import sys; sys.exit(0)
+        # out = model.netG.forward(Variable(z, volatile=True))
+        out = model.netG_A.forward(Variable(z, volatile=True))
+
+        import ipdb; ipdb.set_trace()
+        imsave('out.jpg', out.data.cpu().squeeze().permute(1,2,0).numpy())
+        # import sys; sys.exit(0)
+        quit()
 
         net.hidden = net.init_hidden()
 
@@ -148,7 +169,7 @@ for epoch_idx in range(EPOCHS):
         if TRAIN:
             optimizer.zero_grad()
 
-        output_seq = net(x, z)
+        output_seq = net(x, out)
         loss_episode = loss_function(output_seq, y)
         loss_episode.backward()
         loss_epi = loss_episode.data.cpu()[0]
