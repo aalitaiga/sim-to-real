@@ -41,7 +41,7 @@ episode_length = 150
 split = 0.90
 
 # Creating the h5 dataset
-name = '/Tmp/mujoco_data2.h5'
+name = '/tmp/mujoco_data3.h5'
 assert 0 < split <= 1
 size_train = math.floor(max_steps * split)
 size_val = math.ceil(max_steps * (1 - split))

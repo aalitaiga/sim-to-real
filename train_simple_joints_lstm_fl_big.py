@@ -101,7 +101,7 @@ for epoch_idx in np.arange(EPOCHS):
         x, y = makeIntoVariables(data)
 
         # reset hidden lstm units
-        net.hidden = net.init_hidden()
+        net.zero_hidden()
 
         loss_episode = 0
         if TRAIN:
@@ -122,9 +122,10 @@ for epoch_idx in np.arange(EPOCHS):
         if TRAIN:
             optimizer.step()
 
-        loss.detach()
-        net.hidden[0].detach()
-        net.hidden[1].detach()
+        # this block is prolly unnecessary, but just in case
+        loss.detach_()
+        net.hidden[0].detach_()
+        net.hidden[1].detach_()
 
         diff_episode = torch.sum(torch.pow(x.data - y.data, 2))
         printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len(x))
