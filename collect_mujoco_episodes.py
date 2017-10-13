@@ -17,7 +17,8 @@ env.env.env._init(
     arm0=.1,    # length of limb 1
     arm1=.1,     # length of limb 2
     torque0=200, # torque of joint 1
-    torque1=200  # torque of joint 2
+    torque1=200,  # torque of joint 2
+    topDown=True
 )
 env2.env.env._init(
     arm0=.12,    # length of limb 1
@@ -30,7 +31,8 @@ env2.env.env._init(
         "arenaBorders": "1.0 0.8 0.4",
         "arm0": "0.2 0.6 0.2",
         "arm1": "0.2 0.6 0.2"
-    }
+    },
+    topDown=True
 )
 
 image_dim = (128, 128, 3)
@@ -42,7 +44,7 @@ episode_length = 150
 split = 0.90
 
 # Creating the h5 dataset
-name = '/Tmp/mujoco_data3.h5'
+name = '/Tmp/mujoco_data4.h5'
 assert 0 < split <= 1
 size_train = math.floor(max_steps * split)
 size_val = math.ceil(max_steps * (1 - split))
