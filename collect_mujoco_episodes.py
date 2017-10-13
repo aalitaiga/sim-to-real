@@ -21,11 +21,10 @@ env.env.env._init(
     topDown=True
 )
 env2.env.env._init(
-    arm0=.12,    # length of limb 1
-    arm1=.08,     # length of limb 2
+    # arm0=.12,    # length of limb 1
+    # arm1=.08,     # length of limb 2
     torque0=100, # torque of joint 1
     torque1=300,  # torque of joint 2
-    fov=60,
     colors={
         "arenaBackground": ".27 .27 .81",
         "arenaBorders": "1.0 0.8 0.4",
