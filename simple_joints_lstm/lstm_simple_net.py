@@ -15,6 +15,11 @@ class LstmSimpleNet(nn.Module):
 
         self.hidden = self.init_hidden()
 
+    def zero_hidden(self):
+        # print(dir(self.hidden[0]))
+        self.hidden[0].data.zero_()
+        self.hidden[1].data.zero_()
+
     def init_hidden(self):
         # the 1 here in the middle is the minibatch size
         h, c = (autograd.Variable(torch.zeros(LSTM_LAYERS, 1, HIDDEN_NODES), requires_grad=False),
