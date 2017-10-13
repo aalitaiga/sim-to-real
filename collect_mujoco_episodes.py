@@ -8,6 +8,7 @@ import numpy as np
 from scipy.misc import imresize
 from utils.buffer_images import BufferImages as Buffer
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 env = gym.make('Reacher2Pixel-v1')
 env2 = gym.make('Reacher2Pixel-v1')
@@ -41,7 +42,7 @@ episode_length = 150
 split = 0.90
 
 # Creating the h5 dataset
-name = '/tmp/mujoco_data3.h5'
+name = '/Tmp/mujoco_data3.h5'
 assert 0 < split <= 1
 size_train = math.floor(max_steps * split)
 size_val = math.ceil(max_steps * (1 - split))
@@ -91,7 +92,7 @@ def match_env(ev1, ev2):
 
 i = 0
 
-while i < max_steps:
+for i in tqdm(range(max_steps)):
     obs = env.reset()
     obs2 = env2.reset()
     match_env(env, env2)
@@ -124,8 +125,6 @@ while i < max_steps:
         if done2:
             # print("Episode finished after {} timesteps".format(t+1))
             break
-
-    i += 1
 
     if i % 200 == 0:
         print("Buffer currently filled at: {}%".format(int(i*100./max_steps)))

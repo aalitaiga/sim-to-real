@@ -122,7 +122,6 @@ for epoch_idx in np.arange(EPOCHS):
         if TRAIN:
             optimizer.step()
 
-        # this block is prolly unnecessary, but just in case
         loss.detach_()
         net.hidden[0].detach_()
         net.hidden[1].detach_()
