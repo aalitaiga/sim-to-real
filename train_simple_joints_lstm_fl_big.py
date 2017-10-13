@@ -16,6 +16,9 @@ dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
 
 net = LstmSimpleNet()
 
+print(net)
+
+
 if CUDA:
     net.cuda()
 
@@ -86,11 +89,10 @@ def loadModel():
 loss_function = nn.MSELoss()
 if TRAIN:
     optimizer = optim.Adam(net.parameters())
+else:
+    old_model_string = loadModel()
 
 loss_history = [9999999]  # very high loss because loss can't be empty for min()
-
-if not TRAIN:
-    old_model_string = loadModel()
 
 for epoch_idx in np.arange(EPOCHS):
 
@@ -109,8 +111,6 @@ for epoch_idx in np.arange(EPOCHS):
 
         # iterate over episode frames
         for frame_idx in np.arange(len(x)):
-            # x_frame = x[frame_idx]
-            # y_frame = y[frame_idx]
 
             prediction = net.forward(x[frame_idx])
             loss = loss_function(prediction, y[frame_idx].view(1, -1))

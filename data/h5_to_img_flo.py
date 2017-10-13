@@ -11,9 +11,9 @@ set_ = 'train'
 # name = "/Tmp/alitaiga/sim-to-real/gen_data.h5"
 # out_dir_s = "/Tmp/alitaiga/sim-to-real/reacher_data/A/{}/".format(set_)
 # out_dir_r = "/Tmp/alitaiga/sim-to-real/reacher_data/B/{}/".format(set_)
-name = "/tmp/mujoco_data3.h5"
-out_dir_s = "/tmp/sim-to-real/reacher_data/A/{}/".format(set_)
-out_dir_r = "/tmp/sim-to-real/reacher_data/B/{}/".format(set_)
+name = "/Tmp/mujoco_data4.h5"
+out_dir_s = "/Tmp/sim-to-real/reacher_data/A/{}/".format(set_)
+out_dir_r = "/Tmp/sim-to-real/reacher_data/B/{}/".format(set_)
 
 for out_dir in [out_dir_r, out_dir_s]:
     if not os.path.exists(out_dir):
