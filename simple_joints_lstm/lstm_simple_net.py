@@ -24,8 +24,8 @@ class LstmSimpleNet(nn.Module):
         return h, c
 
     def zero_hidden(self):
-        self.hidden[0].zero_()
-        self.hidden[1].zero_()
+        self.hidden[0].data.zero_()
+        self.hidden[1].data.zero_()
 
     def forward(self, data_in):
         # the view is to add the minibatch dimension (which is 1)
