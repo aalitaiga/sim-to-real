@@ -145,7 +145,7 @@ for epoch_idx in np.arange(EPOCHS):
 
             loss_episode += loss.data.cpu()[0]
             if TRAIN:
-                loss.backward(retain_variables=True)
+                loss.backward(retain_graph=True)
 
         if TRAIN:
             optimizer.step()
