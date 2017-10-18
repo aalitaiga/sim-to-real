@@ -8,7 +8,12 @@ from torch.utils.data import DataLoader
 from simple_joints_lstm.lstm_simple_net import LstmSimpleNet
 from simple_joints_lstm.mujoco_traintest_dataset import MujocoTraintestDataset
 from simple_joints_lstm.params import *
-from hyperdash import Experiment
+
+try:
+    from hyperdash import Experiment
+    hyperdash_support = True
+except:
+    hyperdash_support = False
 
 dataset = MujocoTraintestDataset(DATASET_PATH, for_training=TRAIN)
 
@@ -55,8 +60,9 @@ def printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len_epi
         round(diff_episode, 2),
         diff_avg
     ))
-    exp.metric("diff avg", diff_avg)
-    exp.metric("loss avg", loss_avg)
+    if hyperdash_support:
+        exp.metric("diff avg", diff_avg)
+        exp.metric("loss avg", loss_avg)
 
 
 def printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch):
@@ -92,8 +98,10 @@ def loadModel():
 
 
 loss_function = nn.MSELoss()
-if TRAIN:
+if hyperdash_support:
     exp = Experiment("simple lstm - fl4")
+
+if TRAIN:
     optimizer = optim.Adam(net.parameters())
 else:
     old_model_string = loadModel()
@@ -154,4 +162,5 @@ for epoch_idx in np.arange(EPOCHS):
         break
 
 # Cleanup and mark that the experiment successfully completed
-exp.end()
+if hyperdash_support:
+    exp.end()
