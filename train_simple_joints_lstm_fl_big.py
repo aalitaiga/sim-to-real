@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 from simple_joints_lstm.lstm_simple_net import LstmSimpleNet
 from simple_joints_lstm.mujoco_traintest_dataset import MujocoTraintestDataset
 from simple_joints_lstm.params import *
+from hyperdash import Experiment
 
 dataset = MujocoTraintestDataset(DATASET_PATH, for_training=TRAIN)
 
@@ -42,16 +43,20 @@ def makeIntoVariables(dataslice):
 
 
 def printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len_episode):
+    loss_avg = round(float(loss_episode) / len_episode, 2)
+    diff_avg = round(float(diff_episode) / len_episode, 2)
     print("epoch {}, episode {}, "
           "loss: {}, loss avg: {}, "
           "diff: {}, diff avg: {}".format(
         epoch_idx,
         episode_idx,
         round(loss_episode, 2),
-        round(float(loss_episode) / len_episode, 2),
+        loss_avg,
         round(diff_episode, 2),
-        round(float(diff_episode) / len_episode, 2)
+        diff_avg
     ))
+    exp.metric("diff avg", diff_avg)
+    exp.metric("loss avg", loss_avg)
 
 
 def printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch):
@@ -88,6 +93,7 @@ def loadModel():
 
 loss_function = nn.MSELoss()
 if TRAIN:
+    exp = Experiment("simple lstm - fl4")
     optimizer = optim.Adam(net.parameters())
 else:
     old_model_string = loadModel()
@@ -147,3 +153,5 @@ for epoch_idx in np.arange(EPOCHS):
         print (old_model_string)
         break
 
+# Cleanup and mark that the experiment successfully completed
+exp.end()
