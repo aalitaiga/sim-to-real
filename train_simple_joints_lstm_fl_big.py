@@ -128,7 +128,7 @@ for epoch_idx in np.arange(EPOCHS):
 
     for episode_idx, data in enumerate(dataloader):
         x, y = makeIntoVariables(data)
-        diff_episode = F.mse_loss(x.data, y.data)
+        diff_episode = F.mse_loss(x.data, y.data).data.cpu()[0]
 
         # reset hidden lstm units
         net.zero_hidden()
