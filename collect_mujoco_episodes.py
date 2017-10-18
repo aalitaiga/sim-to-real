@@ -16,20 +16,20 @@ env2 = gym.make('Reacher2Pixel-v1')
 env.env.env._init(
     arm0=.1,    # length of limb 1
     arm1=.1,     # length of limb 2
-    torque0=200, # torque of joint 1
-    torque1=200,  # torque of joint 2
+    torque0=1, # torque of joint 1
+    torque1=3000,  # torque of joint 2
     topDown=True
 )
 env2.env.env._init(
     # arm0=.12,    # length of limb 1
     # arm1=.08,     # length of limb 2
-    torque0=100, # torque of joint 1
-    torque1=300,  # torque of joint 2
+    torque0=200, # torque of joint 1
+    torque1=200,  # torque of joint 2
     colors={
         "arenaBackground": ".27 .27 .81",
         "arenaBorders": "1.0 0.8 0.4",
-        "arm0": "0.2 0.6 0.2",
-        "arm1": "0.2 0.6 0.2"
+        "arm0": "0.9 0.6 0.9",
+        "arm1": "0.9 0.9 0.6"
     },
     topDown=True
 )
@@ -41,6 +41,7 @@ rng = np.random.RandomState(seed=22)
 max_steps = 1000
 episode_length = 150
 split = 0.90
+action_steps = 5
 
 # Creating the h5 dataset
 name = '/Tmp/mujoco_data4.h5'
@@ -90,6 +91,9 @@ def match_env(ev1, ev2):
         ev2.env.env.model.data.qpos.ravel(),
         ev2.env.env.model.data.qvel.ravel()
     )
+    #print(ev2.env.env.model.data.qpos.ravel(),
+    #    ev2.env.env.model.data.qvel.ravel())
+    #print(ev1.env.env.model.data.get_state())
 
 i = 0
 
@@ -102,7 +106,8 @@ for i in tqdm(range(max_steps)):
         # env.render()
         # env2.render()
 
-        action = env.action_space.sample()
+        if j % action_steps == 0:
+            action = env.action_space.sample()
         new_obs, reward, done, info = env.step(action)
         new_obs2, reward2, done2, info2 = env2.step(action)
 
