@@ -3,6 +3,7 @@ import shutil
 import numpy as np
 from torch import autograd, nn, optim, torch
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
 
 # absolute imports here, so that you can run the file directly
 from simple_joints_lstm.lstm_simple_net import LstmSimpleNet
@@ -127,6 +128,7 @@ for epoch_idx in np.arange(EPOCHS):
 
     for episode_idx, data in enumerate(dataloader):
         x, y = makeIntoVariables(data)
+        diff_episode = F.mse_loss(x.data, y.data)
 
         # reset hidden lstm units
         net.zero_hidden()
@@ -152,7 +154,6 @@ for epoch_idx in np.arange(EPOCHS):
         net.hidden[0].detach_()
         net.hidden[1].detach_()
 
-        diff_episode = torch.sum(torch.pow(x.data - y.data, 2))
         printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len(x))
 
         loss_epoch += loss_episode
