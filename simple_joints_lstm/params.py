@@ -6,3 +6,4 @@ DATASET_PATH = "/data/lisa/data/sim2real/mujoco_data4.h5"
 MODEL_PATH = "./trained_models/simple_lstm_4_128_fl_big.pt"
 MODEL_PATH_BEST = "./trained_models/simple_lstm_4_128_fl_big_best.pt"
 TRAIN = True
+CONTINUE = True

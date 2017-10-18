@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 from simple_joints_lstm.lstm_simple_net import LstmSimpleNet
 from simple_joints_lstm.mujoco_traintest_dataset import MujocoTraintestDataset
 from simple_joints_lstm.params import *
+import os
 
 try:
     from hyperdash import Experiment
@@ -89,12 +90,20 @@ def saveModel(state, epoch, loss_epoch, diff_epoch, is_best, episode_idx):
         shutil.copyfile(MODEL_PATH, MODEL_PATH_BEST)
 
 
-def loadModel():
-    checkpoint = torch.load(MODEL_PATH_BEST)
-    net.load_state_dict(checkpoint['state_dict'])
-    return "TRAINING AVG LOSS: {}\n" \
-           "TRAINING AVG DIFF: {}".format(
-        checkpoint["epoch_avg_loss"], checkpoint["epoch_avg_diff"])
+def loadModel(optional = True):
+    model_exists = os.path.isfile(MODEL_PATH_BEST)
+    if model_exists:
+        checkpoint = torch.load(MODEL_PATH_BEST)
+        net.load_state_dict(checkpoint['state_dict'])
+        return "TRAINING AVG LOSS: {}\n" \
+               "TRAINING AVG DIFF: {}".format(
+            checkpoint["epoch_avg_loss"], checkpoint["epoch_avg_diff"])
+    else:
+        if optional:
+            pass # model loading was optional, so nothing to do
+        else:
+            #shit, no model
+            raise Exception("model couldn't be found:",MODEL_PATH_BEST)
 
 
 loss_function = nn.MSELoss()
@@ -103,8 +112,11 @@ if hyperdash_support:
 
 if TRAIN:
     optimizer = optim.Adam(net.parameters())
+    if CONTINUE:
+        old_model_string = loadModel(optional=True)
+        print (old_model_string)
 else:
-    old_model_string = loadModel()
+    old_model_string = loadModel(optional=False)
 
 loss_history = [9999999]  # very high loss because loss can't be empty for min()
 
