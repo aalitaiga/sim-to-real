@@ -110,6 +110,8 @@ def loadModel(optional = True):
 loss_function = nn.MSELoss()
 if hyperdash_support:
     exp = Experiment("simple lstm - fl4")
+    exp.param("layers", LSTM_LAYERS)
+    exp.param("nodes", HIDDEN_NODES)
 
 if TRAIN:
     optimizer = optim.Adam(net.parameters())
