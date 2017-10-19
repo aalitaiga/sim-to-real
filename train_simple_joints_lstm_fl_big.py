@@ -128,12 +128,13 @@ for epoch_idx in np.arange(EPOCHS):
 
     for episode_idx, data in enumerate(dataloader):
         x, y = makeIntoVariables(data)
-        diff_episode = F.mse_loss(x.data, y.data)
+        #diff_episode = F.mse_loss(x.data, y.data)
 
         # reset hidden lstm units
         net.zero_hidden()
 
         loss_episode = 0
+        diff_episode = 0
         if TRAIN:
             optimizer.zero_grad()
 
@@ -144,6 +145,7 @@ for epoch_idx in np.arange(EPOCHS):
             loss = loss_function(prediction, y[frame_idx].view(1, -1))
 
             loss_episode += loss.data.cpu()[0]
+            diff_episode += F.mse_loss(x[frame_idx].data, y[frame_idx].data).data.cpu()[0]
             if TRAIN:
                 loss.backward(retain_graph=True)
 
