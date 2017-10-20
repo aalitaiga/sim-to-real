@@ -28,6 +28,7 @@ def get_args(env = None):
                         help='how many steps to perform a validate experiment')
     parser.add_argument('--output', default='rl-logs', type=str, help='')
     parser.add_argument('--debug', dest='debug', action='store_true')
+    parser.add_argument('--vis', dest='vis', action='store_true')
     parser.add_argument('--init_w', default=0.003, type=float, help='')
     parser.add_argument('--train_iter', default=200000, type=int, help='train iters each timestep')
     parser.add_argument('--epsilon', default=50000, type=int, help='linear decay of exploration policy')
