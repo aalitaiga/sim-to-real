@@ -13,14 +13,14 @@ from tqdm import tqdm
 env = gym.make('Reacher2Pixel-v1')
 env2 = gym.make('Reacher2Pixel-v1')
 
-env.env.env._init(
+env.env.env._init( #"simulator"
     arm0=.1,    # length of limb 1
     arm1=.1,     # length of limb 2
     torque0=1, # torque of joint 1
     torque1=3000,  # torque of joint 2
     topDown=True
 )
-env2.env.env._init(
+env2.env.env._init( # real robot
     # arm0=.12,    # length of limb 1
     # arm1=.08,     # length of limb 2
     torque0=200, # torque of joint 1
