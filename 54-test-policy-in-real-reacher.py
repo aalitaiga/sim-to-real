@@ -16,6 +16,13 @@ except:
 
 args = get_args(env="Reacher2-v1")
 
+
+# # to run eval:
+# # python3 54-test-policy-in-real-reacher.py --mode test --debug --resume rl-logs/Reacher2-v1-run3 --vis
+# # or
+# # python3 54-test-policy-in-real-reacher.py --mode test --debug --resume rl-logs/Reacher2Plus-v1-run3 --vis
+
+
 env = NormalizedEnv(gym.make(args.env))
 
 env.env.env._init( # real robot
