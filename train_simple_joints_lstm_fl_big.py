@@ -110,6 +110,8 @@ def loadModel(optional = True):
 loss_function = nn.MSELoss()
 if hyperdash_support:
     exp = Experiment("simple lstm - fl4")
+    exp.param("layers", LSTM_LAYERS)
+    exp.param("nodes", HIDDEN_NODES)
 
 if TRAIN:
     optimizer = optim.Adam(net.parameters())
@@ -128,7 +130,7 @@ for epoch_idx in np.arange(EPOCHS):
 
     for episode_idx, data in enumerate(dataloader):
         x, y = makeIntoVariables(data)
-        #diff_episode = F.mse_loss(x.data, y.data)
+        #diff_episode = F.mse_loss(x.data, y.data).data.cpu()[0]
 
         # reset hidden lstm units
         net.zero_hidden()

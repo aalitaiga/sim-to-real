@@ -3,7 +3,7 @@ import math
 import h5py
 from fuel.datasets.hdf5 import H5PYDataset
 import gym
-import gym_reacher2
+import gym_throwandpush
 import numpy as np
 from scipy.misc import imresize
 from utils.buffer_images import BufferImages as Buffer
@@ -23,18 +23,18 @@ env.env.env._init(
         "r_wrist_flex_joint": 1,
         "r_wrist_roll_joint": 1
     },
-    topDown=True,
+    topDown=False,
     colored=False
 )
 env2.env.env._init(
     torques={
-        "r_shoulder_pan_joint": 0.001,
-        "r_shoulder_lift_joint": 1000,
-        "r_upper_arm_roll_joint": 0.001,
-        "r_elbow_flex_joint": 1000,
-        "r_forearm_roll_joint": 0.001,
-        "r_wrist_flex_joint": 1000,
-        "r_wrist_roll_joint": 0.001
+        "r_shoulder_pan_joint": 0.1,
+        "r_shoulder_lift_joint": 500,
+        "r_upper_arm_roll_joint": 0.1,
+        "r_elbow_flex_joint": 500,
+        "r_forearm_roll_joint": 0.1,
+        "r_wrist_flex_joint": 500,
+        "r_wrist_roll_joint": 0.1
     },
     topDown=True,
     colored=True
@@ -44,7 +44,7 @@ image_dim = (128, 128, 3)
 observation_dim = int(env.observation_space[0].shape[0])
 action_dim = int(env.action_space.shape[0])
 rng = np.random.RandomState(seed=22)
-max_steps = 2
+max_steps = 1000
 episode_length = 150
 split = 0.90
 action_steps = 5
