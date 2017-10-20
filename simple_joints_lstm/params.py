@@ -1,5 +1,5 @@
 HIDDEN_NODES = 128
-LSTM_LAYERS = 5
+LSTM_LAYERS = 3
 CUDA = True
 EPOCHS = 1
 DATASET_PATH = "/data/lisa/data/sim2real/mujoco_data4.h5"
