@@ -6,7 +6,7 @@ from .params import *
 
 class LstmSimpleNet2(nn.Module):
     def __init__(self):
-        super(LstmSimpleNet, self).__init__()
+        super(LstmSimpleNet2, self).__init__()
 
         # because the LSTM is looking at 1 element at a time, and each element has 4 values
         self.linear1 = nn.Linear(4, HIDDEN_NODES)
