@@ -18,7 +18,7 @@ except:
 
 MODEL_PATH = "trained_models/simple_lstm_v3.pt"
 
-args = get_args(env="Reacher2Plus-v1")
+args = get_args(env="Reacher2PlusBig-v1")
 
 env = NormalizedEnv(gym.make(args.env))
 
