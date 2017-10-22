@@ -1,6 +1,6 @@
 HIDDEN_NODES = 128
 LSTM_LAYERS = 3
-CUDA = True
+CUDA = False
 EPOCHS = 1
 DATASET_PATH = "/data/lisa/data/sim2real/mujoco_data4.h5"
 MODEL_PATH = "./trained_models/simple_lstm3_v1_128_fl_big.pt"
