@@ -1,7 +1,7 @@
 import torch.nn.functional as F
 from torch import nn, autograd, torch
 
-from .params import *
+from .params_pusher import *
 
 
 class LstmSimpleNet2Pusher(nn.Module):
