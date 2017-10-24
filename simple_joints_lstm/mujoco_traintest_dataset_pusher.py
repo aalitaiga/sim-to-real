@@ -26,7 +26,7 @@ class MujocoTraintestPusherDataset(Dataset):
         handle = self.f.open()
         data = self.f.get_data(handle, slice(idx, idx + 1))
 
-        print (data.shape)
+        print (len(data))
 
         # items:
         # 0-6 - joint angles
@@ -50,7 +50,7 @@ class MujocoTraintestPusherDataset(Dataset):
         return episode
 
 if __name__ == '__main__':
-    ms1d = MujocoTraintestPusherDataset("../mujoco_data.h5")
+    ms1d = MujocoTraintestPusherDataset("/data/lisa/data/sim2real/mujoco_data2_pusher.h5")
     print ("loaded dataset with {} episodes".format(len(ms1d)))
     sample = ms1d[0]
     state_next_sim_joints = sample["state_next_sim_joints"]
