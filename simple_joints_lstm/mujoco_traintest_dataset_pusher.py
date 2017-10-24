@@ -26,8 +26,6 @@ class MujocoTraintestPusherDataset(Dataset):
         handle = self.f.open()
         data = self.f.get_data(handle, slice(idx, idx + 1))
 
-        print (data.shape)
-
         # items:
         # 0-6 - joint angles
         # 7-13 - joint velocities
