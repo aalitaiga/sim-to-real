@@ -1,0 +1,9 @@
+HIDDEN_NODES = 128
+LSTM_LAYERS = 3
+CUDA = True
+EPOCHS = 1
+DATASET_PATH = "/data/lisa/data/sim2real/mujoco_data2_pusher.h5"
+MODEL_PATH = "./trained_models/simple_lstm_pusher1_v1_3l_128.pt"
+MODEL_PATH_BEST = "./trained_models/simple_lstm_pusher1_v1_3l_128_best.pt"
+TRAIN = True
+CONTINUE = True

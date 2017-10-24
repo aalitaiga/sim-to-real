@@ -7,14 +7,13 @@ import torch.nn.functional as F
 
 # absolute imports here, so that you can run the file directly
 from simple_joints_lstm.lstm_simple_net2_pusher import LstmSimpleNet2Pusher
-from simple_joints_lstm.lstm_simple_net3 import LstmSimpleNet3
-from simple_joints_lstm.mujoco_traintest_dataset_full import MujocoTraintestFullDataset
 from simple_joints_lstm.mujoco_traintest_dataset_pusher import MujocoTraintestPusherDataset
-from simple_joints_lstm.params import *
+from simple_joints_lstm.params_pusher import *
 import os
 
 try:
     from hyperdash import Experiment
+
     hyperdash_support = True
 except:
     hyperdash_support = False
@@ -27,7 +26,6 @@ dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
 net = LstmSimpleNet2Pusher()
 
 print(net)
-
 
 if CUDA:
     net.cuda()
@@ -84,7 +82,7 @@ def printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch):
 def saveModel(state, epoch, loss_epoch, diff_epoch, is_best, episode_idx):
     torch.save({
         "epoch": epoch,
-        "episodes": episode_idx+1,
+        "episodes": episode_idx + 1,
         "state_dict": state,
         "epoch_avg_loss": float(loss_epoch) / (episode_idx + 1),
         "epoch_avg_diff": float(diff_epoch) / (episode_idx + 1)
@@ -93,7 +91,7 @@ def saveModel(state, epoch, loss_epoch, diff_epoch, is_best, episode_idx):
         shutil.copyfile(MODEL_PATH, MODEL_PATH_BEST)
 
 
-def loadModel(optional = True):
+def loadModel(optional=True):
     model_exists = os.path.isfile(MODEL_PATH_BEST)
     if model_exists:
         checkpoint = torch.load(MODEL_PATH_BEST)
@@ -103,10 +101,10 @@ def loadModel(optional = True):
             checkpoint["epoch_avg_loss"], checkpoint["epoch_avg_diff"])
     else:
         if optional:
-            pass # model loading was optional, so nothing to do
+            pass  # model loading was optional, so nothing to do
         else:
-            #shit, no model
-            raise Exception("model couldn't be found:",MODEL_PATH_BEST)
+            # shit, no model
+            raise Exception("model couldn't be found:", MODEL_PATH_BEST)
 
 
 loss_function = nn.MSELoss()
@@ -119,7 +117,7 @@ if TRAIN:
     optimizer = optim.Adam(net.parameters())
     if CONTINUE:
         old_model_string = loadModel(optional=True)
-        print (old_model_string)
+        print(old_model_string)
 else:
     old_model_string = loadModel(optional=False)
 
@@ -132,7 +130,7 @@ for epoch_idx in np.arange(EPOCHS):
 
     for episode_idx, data in enumerate(dataloader):
         x, y = makeIntoVariables(data)
-        #diff_episode = F.mse_loss(x.data, y.data).data.cpu()[0]
+        # diff_episode = F.mse_loss(x.data, y.data).data.cpu()[0]
 
         # reset hidden lstm units
         net.zero_hidden()
@@ -177,7 +175,7 @@ for epoch_idx in np.arange(EPOCHS):
         )
         loss_history.append(loss_epoch)
     else:
-        print (old_model_string)
+        print(old_model_string)
         break
 
 # Cleanup and mark that the experiment successfully completed
