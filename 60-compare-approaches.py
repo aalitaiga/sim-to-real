@@ -7,6 +7,8 @@ files = {
     "simplus-v1": "Reacher2Plus-v1-run5",
     "simplus-v2": "Reacher2Plus-v1-run8",
     "simplus-v3": "Reacher2PlusBig-v1-run11",
+    "simplus-v4": "Reacher2Plus-v1-run16",
+    "simplus-v5": "Reacher2Plus-v1-run20",
     "real": "Reacher2-v1-run12"
 }
 
@@ -21,7 +23,7 @@ RANGE = 1100
 x = np.linspace(-RANGE, 0, RANGE)
 
 
-for key,val in files.items():
+for key,val in sorted(files.items()):
     data[key] = np.loadtxt("./{}/{}/eval.log".format(LOGS_DIR, val))
     mean,std=norm.fit(data[key])
     means[key] = mean
