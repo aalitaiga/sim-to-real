@@ -1,20 +1,31 @@
+import torch
 import gym
 import gym_reacher2
 import numpy as np
-from ddpg.ddpg import DDPG
-from ddpg.evaluator import Evaluator
-from ddpg.main import train, test
-from ddpg.normalized_env import NormalizedEnv
+#from ddpg.ddpg import DDPG
+#from ddpg.evaluator import Evaluator
+#from ddpg.main import train, test
+#from ddpg.normalized_env import NormalizedEnv
 
-from args.ddpg import get_args
-from simple_joints_lstm.lstm_simple_net import LstmSimpleNet
+#from args.ddpg import get_args
+#from simple_joints_lstm.lstm_simple_net import LstmSimpleNet
 from simple_joints_lstm.lstm_simple_net2 import LstmSimpleNet2
+
 
 try:
     from hyperdash import Experiment
     hyperdash_support = True
 except:
     hyperdash_support = False
+
+
+from ddpg.ddpg import DDPG
+from ddpg.evaluator import Evaluator
+from ddpg.main import train, test
+from ddpg.normalized_env import NormalizedEnv
+
+from args.ddpg import get_args
+
 
 MODEL_PATH = "trained_models/simple_lstm_v4.pt"
 
