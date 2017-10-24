@@ -6,8 +6,8 @@ from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
 # absolute imports here, so that you can run the file directly
-from simple_joints_lstm.lstm_simple_net3 import LstmSimpleNet3
-from simple_joints_lstm.mujoco_traintest_dataset_full import MujocoTraintestFullDataset
+from simple_joints_lstm.lstm_simple_net2 import LstmSimpleNet2
+from simple_joints_lstm.mujoco_traintest_dataset import MujocoTraintestDataset
 from simple_joints_lstm.params import *
 import os
 
@@ -17,12 +17,12 @@ try:
 except:
     hyperdash_support = False
 
-dataset = MujocoTraintestFullDataset(DATASET_PATH, for_training=TRAIN)
+dataset = MujocoTraintestDataset(DATASET_PATH, for_training=TRAIN)
 
 # batch size has to be 1, otherwise the LSTM doesn't know what to do
 dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
 
-net = LstmSimpleNet3()
+net = LstmSimpleNet2()
 
 print(net)
 

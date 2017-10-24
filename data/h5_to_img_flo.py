@@ -11,7 +11,7 @@ set_ = 'train'
 # name = "/Tmp/alitaiga/sim-to-real/gen_data.h5"
 # out_dir_s = "/Tmp/alitaiga/sim-to-real/reacher_data/A/{}/".format(set_)
 # out_dir_r = "/Tmp/alitaiga/sim-to-real/reacher_data/B/{}/".format(set_)
-name = "/Tmp/mujoco_data1_pusher.h5"
+name = "/Tmp/mujoco_data2_pusher.h5"
 out_dir_s = "/Tmp/sim-to-real/pusher_data/A/{}/".format(set_)
 out_dir_r = "/Tmp/sim-to-real/pusher_data/B/{}/".format(set_)
 
@@ -20,7 +20,7 @@ for out_dir in [out_dir_r, out_dir_s]:
         os.makedirs(out_dir)
 
 reacher_data = H5PYDataset(name, which_sets=(set_,),
-                sources=('s_transition_img', 'r_transition_img'))
+                sources=('s_transition_img', 'r_transition_img', 'actions'))
 
 stream = DataStream(
     reacher_data,
@@ -34,6 +34,8 @@ for episode in tqdm(iterator):
     # import ipdb; ipdb.set_trace()
     s_trans_img = episode['s_transition_img'][0]
     r_trans_img = episode['r_transition_img'][0]
+    tmp = episode['actions']
+    print(tmp.shape)
 
     out_dir_s_episode = os.path.join(out_dir_s, "run-{}".format(episode_idx))
     out_dir_r_episode = os.path.join(out_dir_r, "run-{}".format(episode_idx))
