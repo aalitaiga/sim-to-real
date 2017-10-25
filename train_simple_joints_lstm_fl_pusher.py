@@ -96,6 +96,7 @@ def loadModel(optional=True):
     if model_exists:
         checkpoint = torch.load(MODEL_PATH_BEST)
         net.load_state_dict(checkpoint['state_dict'])
+        print ("MODEL LOADED, CONTINUING TRAINING")
         return "TRAINING AVG LOSS: {}\n" \
                "TRAINING AVG DIFF: {}".format(
             checkpoint["epoch_avg_loss"], checkpoint["epoch_avg_diff"])
