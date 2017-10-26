@@ -122,7 +122,7 @@ if TRAIN:
 else:
     old_model_string = loadModel(optional=False)
 
-loss_history = [9999999]  # very high loss because loss can't be empty for min()
+loss_history = [999999999]  # very high loss because loss can't be empty for min()
 
 for epoch_idx in np.arange(EPOCHS):
 

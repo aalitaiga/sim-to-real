@@ -13,7 +13,7 @@ from tqdm import tqdm
 env = gym.make('Pusher2Pixel-v0')
 env2 = gym.make('Pusher2Pixel-v0')
 
-env.env.env._init(
+env.env.env._init( # simulator
     torques={
         "r_shoulder_pan_joint": 1,
         "r_shoulder_lift_joint": 1,
@@ -26,7 +26,7 @@ env.env.env._init(
     topDown=False,
     colored=False
 )
-env2.env.env._init(
+env2.env.env._init( # real robot
     torques={
         "r_shoulder_pan_joint": 0.1,
         "r_shoulder_lift_joint": 500,
@@ -92,14 +92,11 @@ split_dict = {
 f.attrs['split'] = H5PYDataset.create_split_array(split_dict)
 
 def match_env(ev1, ev2):
-    # make env1 state match env2 state (simulator matches real world)
+    # set env1 (simulator) to that of env2 (real robot)
     ev1.env.env.set_state(
         ev2.env.env.model.data.qpos.ravel(),
         ev2.env.env.model.data.qvel.ravel()
     )
-    #print(ev2.env.env.model.data.qpos.ravel(),
-    #    ev2.env.env.model.data.qvel.ravel())
-    #print(ev1.env.env.model.data.get_state())
 
 i = 0
 
