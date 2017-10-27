@@ -28,7 +28,7 @@ for key,val in sorted(files.items()):
     mean,std=norm.fit(data[key])
     means[key] = mean
     stds[key] = std
-    print (key, mean, std)
+    print ("{}\t{}\t{}".format(key, mean, std))
     y = norm.pdf(x, mean, std)
     plt.plot(x, y, label=key)
 
