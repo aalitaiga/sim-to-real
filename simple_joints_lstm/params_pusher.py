@@ -1,8 +1,8 @@
 HIDDEN_NODES = 128
 LSTM_LAYERS = 3
 EXPERIMENT = 1
-# CUDA = False
-CUDA = True
+CUDA = False
+# CUDA = True
 EPOCHS = 1
 DATASET_PATH_REL = "/data/lisa/data/sim2real/"
 # DATASET_PATH_REL = "/lindata/sim2real/"

@@ -1,3 +1,4 @@
+#import torch
 import math
 
 import h5py
@@ -9,11 +10,12 @@ from scipy.misc import imresize
 from utils.buffer_images import BufferImages as Buffer
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from hyperdash import Experiment
 
 env = gym.make('HalfCheetah2Pixel-v0')
 env2 = gym.make('HalfCheetah2Pixel-v0')
 
-env.env.env._init( # simulator
+env2.env.env._init( # real robot
     torques={
         "bthigh": 120,
         "bshin": 90,
@@ -24,14 +26,14 @@ env.env.env._init( # simulator
     },
     colored=False
 )
-env2.env.env._init( # real robot
+env.env.env._init( # simulator
     torques={
-        "bthigh": 1200,
-        "bshin": 9,
-        "bfoot": 600,
-        "fthigh": 12,
-        "fshin": 600,
-        "ffoot": 3
+        "bthigh": 600,
+        "bshin": 18,
+        "bfoot": 300,
+        "fthigh": 24,
+        "fshin": 300,
+        "ffoot": 6
     },
     colored=True
 )
@@ -41,7 +43,7 @@ observation_dim = int(env.observation_space[0].shape[0])
 action_dim = int(env.action_space.shape[0])
 print ("obs dim: {}, act dim: {}".format(observation_dim, action_dim))
 rng = np.random.RandomState(seed=22)
-max_steps = 2
+max_steps = 1000
 episode_length = 300
 split = 0.90
 action_steps = 5
@@ -97,7 +99,10 @@ def match_env(ev1, ev2):
 
 i = 0
 
+exp = Experiment("dataset cheetah")
+
 for i in tqdm(range(max_steps)):
+    exp.metric("episode", i)
     obs = env.reset()
     obs2 = env2.reset()
     match_env(env, env2)

@@ -9,11 +9,12 @@ from scipy.misc import imresize
 from utils.buffer_images import BufferImages as Buffer
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from hyperdash import Experiment
 
 env = gym.make('Pusher2Pixel-v0')
 env2 = gym.make('Pusher2Pixel-v0')
 
-env.env.env._init( # simulator
+env2.env.env._init( # real robot
     torques={
         "r_shoulder_pan_joint": 1,
         "r_shoulder_lift_joint": 1,
@@ -26,14 +27,14 @@ env.env.env._init( # simulator
     topDown=False,
     colored=False
 )
-env2.env.env._init( # real robot
+env.env.env._init( # simulator
     torques={
         "r_shoulder_pan_joint": 0.1,
-        "r_shoulder_lift_joint": 500,
+        "r_shoulder_lift_joint": 30,
         "r_upper_arm_roll_joint": 0.1,
-        "r_elbow_flex_joint": 500,
+        "r_elbow_flex_joint": 30,
         "r_forearm_roll_joint": 0.1,
-        "r_wrist_flex_joint": 500,
+        "r_wrist_flex_joint": 30,
         "r_wrist_roll_joint": 0.1
     },
     topDown=True,
@@ -50,7 +51,7 @@ split = 0.90
 action_steps = 5
 
 # Creating the h5 dataset
-name = '/Tmp/mujoco_data2_pusher.h5'
+name = '/Tmp/mujoco_data3_pusher.h5'
 assert 0 < split <= 1
 size_train = math.floor(max_steps * split)
 size_val = math.ceil(max_steps * (1 - split))
@@ -100,7 +101,10 @@ def match_env(ev1, ev2):
 
 i = 0
 
+exp = Experiment("dataset pusher")
+
 for i in tqdm(range(max_steps)):
+    exp.metric("episode", i)
     obs = env.reset()
     obs2 = env2.reset()
     match_env(env, env2)

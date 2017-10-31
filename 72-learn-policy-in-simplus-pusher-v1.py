@@ -1,3 +1,4 @@
+import torch
 import gym
 import gym_throwandpush
 import numpy as np
