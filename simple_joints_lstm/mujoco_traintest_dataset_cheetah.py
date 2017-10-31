@@ -2,6 +2,7 @@ import torch
 from fuel.datasets import H5PYDataset
 from torch.utils.data import Dataset
 import h5py
+from .params_cheetah import RELEVANT_COLUMNS
 
 class MujocoTraintestCheetahDataset(Dataset):
     """loads the mujoco h5 recording file and makes it available for pytorch training"""
@@ -34,7 +35,7 @@ class MujocoTraintestCheetahDataset(Dataset):
 
 
         # both 6 angles and 6 velocities
-        relevant_items = list(range(3,9)) + list(range(12,18))
+        relevant_items = RELEVANT_COLUMNS
         episode = {#'state_joints': torch.from_numpy(data[2][0][:, relevant_items]),
                    # 'state_img': self._totensor(data[1][0]),
                    # 'action': torch.from_numpy(data[0][0]),
