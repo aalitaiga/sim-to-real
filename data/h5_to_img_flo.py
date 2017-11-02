@@ -11,7 +11,7 @@ set_ = 'train'
 # name = "/Tmp/alitaiga/sim-to-real/gen_data.h5"
 # out_dir_s = "/Tmp/alitaiga/sim-to-real/reacher_data/A/{}/".format(set_)
 # out_dir_r = "/Tmp/alitaiga/sim-to-real/reacher_data/B/{}/".format(set_)
-name = "/data/lisa/data/sim2real/mujoco_data3_pusher.h5"
+name = "/data/lisa/data/sim2real/mujoco_data1_cheetah.h5"
 out_dir_s = "/Tmp/sim-to-real/cheetah_data/A/{}/".format(set_)
 out_dir_r = "/Tmp/sim-to-real/cheetah_data/B/{}/".format(set_)
 
