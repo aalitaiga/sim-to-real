@@ -46,7 +46,7 @@ evaluate = Evaluator(args.validate_episodes,
 exp = None
 
 if args.mode == 'train':
-    exp = Experiment("sim2real-ddpg-sim-reacher")
+    exp = Experiment("s2r-reacher-ddpg-sim")
     for arg in ["env", "rate", "prate", "hidden1", "hidden2", "warmup", "discount",
                 "bsize", "rmsize", "window_length", "tau", "ou_theta", "ou_sigma", "ou_mu",
                 "validate_episodes", "max_episode_length", "validate_steps", "init_w",
