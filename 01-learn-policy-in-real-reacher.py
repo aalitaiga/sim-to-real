@@ -1,3 +1,4 @@
+import torch
 import gym
 import gym_reacher2
 import numpy as np
