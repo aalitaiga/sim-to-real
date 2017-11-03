@@ -64,14 +64,15 @@ if args.mode == 'train':
             exp.param(arg, arg_val)
 
     train(args, args.train_iter, agent, env, evaluate,
-        args.validate_steps, args.output, max_episode_length=args.max_episode_length, debug=args.debug, exp=exp)
+        args.validate_steps, args.output,
+          max_episode_length=args.max_episode_length, debug=args.debug, exp=exp)
 
     # when done
     exp.end()
 
-# if args.mode == 'test':
-#     test(args.validate_episodes, agent, env, evaluate, args.resume,
-#         visualize=args.vis, debug=args.debug)
+if args.mode == 'test':
+    test(args.validate_episodes, agent, env, evaluate, args.resume,
+         visualize=args.vis, debug=args.debug, load_best=args.best)
 
 else:
     raise RuntimeError('undefined mode {}'.format(args.mode))
