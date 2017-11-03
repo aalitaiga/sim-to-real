@@ -35,7 +35,7 @@ exp = None
 
 if args.mode == 'train':
     if hyperdash_support:
-        exp = Experiment("s2r-reacher-ddpg-real")
+        exp = Experiment("s2r-reacher-ddpg-real-vanilla")
         import socket
 
         exp.param("host", socket.gethostname())
