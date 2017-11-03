@@ -40,7 +40,8 @@ def get_args(env = None):
     args = parser.parse_args()
     if env is not None:
         args.env = env
-    args.output = get_output_folder(args.output, args.env)
+
+    args.output = get_output_folder(args.output, args.env, args.resume)
     if args.resume == 'default':
         args.resume = 'output/{}-run0'.format(args.env)
 

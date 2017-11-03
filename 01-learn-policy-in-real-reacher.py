@@ -16,19 +16,20 @@ except:
 
 args = get_args(env="Reacher2-v1")
 
-
 env = NormalizedEnv(gym.make(args.env))
 
+torques = [1,1]
+
 env.env.env._init( # real robot
-    torque0=200, # torque of joint 1
-    torque1=200,  # torque of joint 2
+    torque0=torques[0], # torque of joint 1
+    torque1=torques[1],  # torque of joint 2
     colors={
         "arenaBackground": ".27 .27 .81",
         "arenaBorders": "1.0 0.8 0.4",
         "arm0": "0.9 0.6 0.9",
         "arm1": "0.9 0.9 0.6"
     },
-    topDown=False
+    topDown=True
 )
 
 if args.seed > 0:
@@ -48,10 +49,16 @@ exp = None
 if args.mode == 'train':
     if hyperdash_support:
         exp = Experiment("sim2real-ddpg-real-reacher")
-        for arg in ["env", "rate", "prate", "hidden1", "hidden2", "warmup", "discount",
-                    "bsize", "rmsize", "window_length", "tau", "ou_theta", "ou_sigma", "ou_mu",
-                    "validate_episodes", "max_episode_length", "validate_steps", "init_w",
-                    "train_iter", "epsilon", "seed", "resume"]:
+        import socket
+
+        exp.param("host", socket.gethostname())
+        exp.param("torques", str(torques))
+        exp.param("folder",args.output)
+        # for arg in ["env", "rate", "prate", "hidden1", "hidden2", "warmup", "discount",
+        #             "bsize", "rmsize", "window_length", "tau", "ou_theta", "ou_sigma", "ou_mu",
+        #             "validate_episodes", "max_episode_length", "validate_steps", "init_w",
+        #             "train_iter", "epsilon", "seed", "resume"]:
+        for arg in ["env", "max_episode_length", "train_iter", "seed", "resume"]:
             arg_val = getattr(args, arg)
             exp.param(arg, arg_val)
 

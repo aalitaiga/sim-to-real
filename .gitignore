@@ -111,6 +111,7 @@ data/ergo-rec*
 trained_models/*.pt
 rl-logs/
 *.old/
-*.old2/
+rl-logs.old2/
+rl-logs.old3-prenips/
 
 core
