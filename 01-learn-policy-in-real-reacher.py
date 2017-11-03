@@ -19,7 +19,7 @@ args = get_args(env="Reacher2-v0")
 
 env = NormalizedEnv(gym.make(args.env))
 
-torques = [1,1]
+torques = [200,200] # default = 200 each
 
 env.env.env._init( # real robot
     torque0=torques[0], # torque of joint 1
@@ -68,7 +68,8 @@ if args.mode == 'train':
           max_episode_length=args.max_episode_length, debug=args.debug, exp=exp)
 
     # when done
-    exp.end()
+    if hyperdash_support:
+        exp.end()
 
 if args.mode == 'test':
     test(args.validate_episodes, agent, env, evaluate, args.resume,

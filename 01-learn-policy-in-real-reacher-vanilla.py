@@ -15,7 +15,7 @@ try:
 except:
     hyperdash_support = False
 
-args = get_args(env="Reacher-v0")
+args = get_args(env="Reacher-v1")
 
 env = NormalizedEnv(gym.make(args.env))
 
