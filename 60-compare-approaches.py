@@ -6,9 +6,12 @@ files = {
     "sim": "Reacher2-v1-run2",
     "simplus-v1": "Reacher2Plus-v1-run5",
     "simplus-v2": "Reacher2Plus-v1-run8",
-    "simplus-v3": "Reacher2PlusBig-v1-run11",
+    # "simplus-v3": "Reacher2PlusBig-v1-run11",
     "simplus-v4": "Reacher2Plus-v1-run16",
     "simplus-v5": "Reacher2Plus-v1-run20",
+    "simplus-v2-r": "Reacher2Plus-v1-run43",
+    "simplus-v4-r": "Reacher2Plus-v1-run45",
+    "simplus-v5-r": "Reacher2Plus-v1-run46",
     "real": "Reacher2-v1-run12"
 }
 

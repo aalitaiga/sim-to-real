@@ -3,17 +3,14 @@ from scipy.stats import norm
 import matplotlib.pyplot as plt
 
 files = {
-    "sim": "Pusher2-v0-run22",
-    # "simplus-v1": "Pusher2Plus-v0-run33",
-    "simplus-v2": "Pusher2Plus-v0-run26",
-    "simplus-v3": "Pusher2Plus-v0-run27",
-    "simplus-v4": "Pusher2Plus-v0-run28",
-
-    "simplus-v1-r": "Pusher2Plus-v0-run47",
-    "simplus-v2-r": "Pusher2Plus-v0-run48",
-    "simplus-v3-r": "Pusher2Plus-v0-run49",
-    "simplus-v4-r": "Pusher2Plus-v0-run50",
-    "real": "Pusher2-v0-run24"
+    "sim": "HalfCheetah2-v0-run41", #
+    "simplus-v2": "HalfCheetah2Plus-v0-run38",
+    "simplus-v3": "HalfCheetah2Plus-v0-run39",
+    "simplus-v4": "HalfCheetah2Plus-v0-run40",
+    "simplus-v2-r": "HalfCheetah2Plus-v0-run51",
+    "simplus-v3-r": "HalfCheetah2Plus-v0-run52",
+    "simplus-v4-r": "HalfCheetah2Plus-v0-run53",
+    "real": "HalfCheetah2-v0-run34-real" #
 }
 
 LOGS_DIR = "rl-logs"
@@ -22,9 +19,7 @@ data = {}
 means = {}
 stds = {}
 
-RANGE = 2600
-
-x = np.linspace(-RANGE, 0, RANGE)
+x = np.linspace(-700, 700, 1400)
 
 
 for key,val in sorted(files.items()):
@@ -39,8 +34,8 @@ for key,val in sorted(files.items()):
 
 plt.legend()
 
-plt.xlim((-2700, -1100))
-plt.ylim((0,0.003))
+plt.xlim((-700, 700))
+plt.ylim((0,0.05))
 # plt.hist(data["sim"], bins=10, normed=True)
 
 

@@ -48,7 +48,7 @@ exp = None
 
 if args.mode == 'test':
     test(args.validate_episodes, agent, env, evaluate, args.resume,
-        visualize=True, debug=args.debug)
+         visualize=args.vis, debug=args.debug)
 
 else:
     raise RuntimeError('undefined mode {}'.format(args.mode))
