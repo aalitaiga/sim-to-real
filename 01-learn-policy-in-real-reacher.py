@@ -23,12 +23,12 @@ torques = [1,1]
 env.env.env._init( # real robot
     torque0=torques[0], # torque of joint 1
     torque1=torques[1],  # torque of joint 2
-    colors={
-        "arenaBackground": ".27 .27 .81",
-        "arenaBorders": "1.0 0.8 0.4",
-        "arm0": "0.9 0.6 0.9",
-        "arm1": "0.9 0.9 0.6"
-    },
+    # colors={
+    #     "arenaBackground": ".27 .27 .81",
+    #     "arenaBorders": "1.0 0.8 0.4",
+    #     "arm0": "0.9 0.6 0.9",
+    #     "arm1": "0.9 0.9 0.6"
+    # },
     topDown=True
 )
 
