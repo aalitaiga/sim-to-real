@@ -1,30 +1,32 @@
+import argparse
 import math
-
+import os
 import h5py
 from fuel.datasets.hdf5 import H5PYDataset
 import gym
 import gym_reacher2
 import numpy as np
 from scipy.misc import imresize
-from utils.buffer_images import BufferImages as Buffer
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-env = gym.make('Reacher2Pixel-v1')
-env2 = gym.make('Reacher2Pixel-v1')
+env = gym.make('Reacher2Pixel-v0')
+env2 = gym.make('Reacher2Pixel-v0')
+
+parser = argparse.ArgumentParser(description='sim2real data collector - reacher')
+
+parser.add_argument('--t1', default=200, type=int, help='torque 1')
+parser.add_argument('--t2', default=200, type=int, help='torque 2')
+parser.add_argument('--ds', default=1, type=int, help='dataset id')
+parser.add_argument('--act', default=1, type=int, help='steps between actions')
+parser.add_argument('--samples', default=1000, type=int, help='how big should the dataset be')
+
+args = parser.parse_args()
+
+print ("DBG: GOT TORQUES: {}, {} AND DATASET ID {}".format(args.t1, args.t2, args.ds))
 
 env.env.env._init( #"simulator"
-    arm0=.1,    # length of limb 1
-    arm1=.1,     # length of limb 2
-    torque0=1, # torque of joint 1
-    torque1=3000,  # torque of joint 2
-    topDown=True
-)
-env2.env.env._init( # real robot
-    # arm0=.12,    # length of limb 1
-    # arm1=.08,     # length of limb 2
-    torque0=200, # torque of joint 1
-    torque1=200,  # torque of joint 2
+    torque0=args.t1, # torque of joint 1
+    torque1=args.t2,  # torque of joint 2
     colors={
         "arenaBackground": ".27 .27 .81",
         "arenaBorders": "1.0 0.8 0.4",
@@ -33,18 +35,27 @@ env2.env.env._init( # real robot
     },
     topDown=True
 )
+env2.env.env._init( # real robot
+    torque0=200, # torque of joint 1
+    torque1=200,  # torque of joint 2
+    topDown=True
+)
 
 image_dim = (128, 128, 3)
 observation_dim = int(env.observation_space[0].shape[0])
 action_dim = int(env.action_space.shape[0])
-rng = np.random.RandomState(seed=22)
-max_steps = 1000
-episode_length = 150
+rng = np.random.RandomState(seed=1337)
+max_steps = args.samples
+episode_length = 50
 split = 0.90
-action_steps = 5
+action_steps = args.act
 
 # Creating the h5 dataset
-name = '/Tmp/mujoco_data4.h5'
+name = '/tmp/mujoco_data_reacher_{}.h5'.format(args.ds)
+
+if os.path.isfile(name):
+    raise Exception("Dataset already exists")
+
 assert 0 < split <= 1
 size_train = math.floor(max_steps * split)
 size_val = math.ceil(max_steps * (1 - split))
@@ -91,9 +102,6 @@ def match_env(ev1, ev2):
         ev2.env.env.model.data.qpos.ravel(),
         ev2.env.env.model.data.qvel.ravel()
     )
-    #print(ev2.env.env.model.data.qpos.ravel(),
-    #    ev2.env.env.model.data.qvel.ravel())
-    #print(ev1.env.env.model.data.get_state())
 
 i = 0
 

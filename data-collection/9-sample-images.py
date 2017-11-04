@@ -20,6 +20,7 @@ name = args.ds
 out_dir_s = "{}/S/{}/".format(args.out, set_)
 out_dir_r = "{}/R/{}/".format(args.out, set_)
 
+
 for out_dir in [out_dir_r, out_dir_s]:
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
