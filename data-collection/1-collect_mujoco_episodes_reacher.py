@@ -51,7 +51,7 @@ split = 0.90
 action_steps = args.act
 
 # Creating the h5 dataset
-name = '/tmp/mujoco_data_reacher_{}.h5'.format(args.ds)
+name = '/Tmp/mujoco_data_reacher_{}_t1-{}_t2-{}.h5'.format(args.ds, args.t1, args.t2)
 
 if os.path.isfile(name):
     raise Exception("Dataset already exists")
