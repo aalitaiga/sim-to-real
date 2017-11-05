@@ -9,6 +9,9 @@ import numpy as np
 from scipy.misc import imresize
 from tqdm import tqdm
 
+
+# python3 1-collect_mujoco_episodes_reacher.py --t1 200 --t2 200 --ds 1 --samples 2
+
 env = gym.make('Reacher2Pixel-v0')
 env2 = gym.make('Reacher2Pixel-v0')
 

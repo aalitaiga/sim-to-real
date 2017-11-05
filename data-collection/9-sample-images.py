@@ -6,6 +6,10 @@ from fuel.datasets.hdf5 import H5PYDataset
 from scipy.misc import imsave
 from tqdm import tqdm
 
+
+# python3 9-sample-images.py --ds /tmp/mujoco_data_reacher_1.h5 --out /tmp/s2r
+
+
 batch = 1
 set_ = 'train'
 
