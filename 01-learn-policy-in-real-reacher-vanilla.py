@@ -2,12 +2,11 @@ import torch
 import gym
 import gym_reacher2
 import numpy as np
+from ddpg.args import Args
 from ddpg.ddpg import DDPG
 from ddpg.evaluator import Evaluator
 from ddpg.main import train, test
 from ddpg.normalized_env import NormalizedEnv
-
-from args.ddpg import get_args
 
 try:
     from hyperdash import Experiment
@@ -15,7 +14,8 @@ try:
 except:
     hyperdash_support = False
 
-args = get_args(env="Reacher-v1")
+ddpg_args = Args()
+args = ddpg_args.get_args(env="Reacher2-v0")
 
 env = NormalizedEnv(gym.make(args.env))
 
