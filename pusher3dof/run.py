@@ -26,7 +26,7 @@ def run_pusher3dof(args, sim=True, vanilla=False):
         colored = True
 
     if not vanilla:
-        env._init(
+        env.env._init(
             torques=torques,
             colored=colored
         )
