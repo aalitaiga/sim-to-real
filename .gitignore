@@ -113,5 +113,6 @@ rl-logs/
 *.old/
 rl-logs.old2/
 rl-logs.old3-prenips/
+rl-logs.current/
 
 core
