@@ -109,3 +109,9 @@ data/ergo-rec*
 .idea
 
 trained_models/*.pt
+rl-logs/
+*.old/
+rl-logs.old2/
+rl-logs.old3-prenips/
+
+core

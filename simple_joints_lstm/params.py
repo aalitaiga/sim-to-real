@@ -1,8 +1,9 @@
 HIDDEN_NODES = 128
-LSTM_LAYERS = 3
+LSTM_LAYERS = 5
 CUDA = True
-EPOCHS = 20
-DATASET_PATH = "/data/lisa/data/sim2real/mujoco_data2.h5"
-MODEL_PATH = "./trained_models/simple_lstm_128_fl_big.pt"
-MODEL_PATH_BEST = "./trained_models/simple_lstm_128_fl_big_best.pt"
-TRAIN = False
+EPOCHS = 1
+DATASET_PATH = "/data/lisa/data/sim2real/mujoco_data4.h5"
+MODEL_PATH = "./trained_models/simple_lstm4_v1_5l_128.pt"
+MODEL_PATH_BEST = "./trained_models/simple_lstm4_v1_5l_128_best.pt"
+TRAIN = True
+CONTINUE = True

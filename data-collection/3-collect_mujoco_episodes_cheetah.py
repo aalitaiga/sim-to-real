@@ -1,47 +1,55 @@
+#import torch
 import math
 
 import h5py
 from fuel.datasets.hdf5 import H5PYDataset
 import gym
-import gym_reacher2
+import gym_throwandpush
 import numpy as np
 from scipy.misc import imresize
 from utils.buffer_images import BufferImages as Buffer
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+from hyperdash import Experiment
 
-env = gym.make('Reacher2Pixel-v1')
-env2 = gym.make('Reacher2Pixel-v1')
+env = gym.make('HalfCheetah2Pixel-v0')
+env2 = gym.make('HalfCheetah2Pixel-v0')
 
-env.env.env._init(
-    arm0=.1,    # length of limb 1
-    arm1=.1,     # length of limb 2
-    torque0=200, # torque of joint 1
-    torque1=200  # torque of joint 2
+env2.env.env._init( # real robot
+    torques={
+        "bthigh": 120,
+        "bshin": 90,
+        "bfoot": 60,
+        "fthigh": 120,
+        "fshin": 60,
+        "ffoot": 30
+    },
+    colored=False
 )
-env2.env.env._init(
-    arm0=.12,    # length of limb 1
-    arm1=.08,     # length of limb 2
-    torque0=100, # torque of joint 1
-    torque1=300,  # torque of joint 2
-    fov=60,
-    colors={
-        "arenaBackground": ".27 .27 .81",
-        "arenaBorders": "1.0 0.8 0.4",
-        "arm0": "0.2 0.6 0.2",
-        "arm1": "0.2 0.6 0.2"
-    }
+env.env.env._init( # simulator
+    torques={
+        "bthigh": 600,
+        "bshin": 18,
+        "bfoot": 300,
+        "fthigh": 24,
+        "fshin": 300,
+        "ffoot": 6
+    },
+    colored=True
 )
 
 image_dim = (128, 128, 3)
 observation_dim = int(env.observation_space[0].shape[0])
 action_dim = int(env.action_space.shape[0])
+print ("obs dim: {}, act dim: {}".format(observation_dim, action_dim))
 rng = np.random.RandomState(seed=22)
 max_steps = 1000
-episode_length = 150
+episode_length = 300
 split = 0.90
+action_steps = 5
 
 # Creating the h5 dataset
-name = '/Tmp/mujoco_data2.h5'
+name = '/Tmp/mujoco_data1_cheetah.h5'
 assert 0 < split <= 1
 size_train = math.floor(max_steps * split)
 size_val = math.ceil(max_steps * (1 - split))
@@ -83,7 +91,7 @@ split_dict = {
 f.attrs['split'] = H5PYDataset.create_split_array(split_dict)
 
 def match_env(ev1, ev2):
-    # make env1 state match env2 state (simulator matches real world)
+    # set env1 (simulator) to that of env2 (real robot)
     ev1.env.env.set_state(
         ev2.env.env.model.data.qpos.ravel(),
         ev2.env.env.model.data.qvel.ravel()
@@ -91,7 +99,10 @@ def match_env(ev1, ev2):
 
 i = 0
 
-while i < max_steps:
+exp = Experiment("dataset cheetah")
+
+for i in tqdm(range(max_steps)):
+    exp.metric("episode", i)
     obs = env.reset()
     obs2 = env2.reset()
     match_env(env, env2)
@@ -100,7 +111,8 @@ while i < max_steps:
         # env.render()
         # env2.render()
 
-        action = env.action_space.sample()
+        if j % action_steps == 0:
+            action = env.action_space.sample()
         new_obs, reward, done, info = env.step(action)
         new_obs2, reward2, done2, info2 = env2.step(action)
 
@@ -124,8 +136,6 @@ while i < max_steps:
         if done2:
             # print("Episode finished after {} timesteps".format(t+1))
             break
-
-    i += 1
 
     if i % 200 == 0:
         print("Buffer currently filled at: {}%".format(int(i*100./max_steps)))
