@@ -1,27 +1,40 @@
 import math
-
+import argparse
 import h5py
 from fuel.datasets.hdf5 import H5PYDataset
 import gym
 import gym_throwandpush
 import numpy as np
 from scipy.misc import imresize
-from utils.buffer_images import BufferImages as Buffer
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from hyperdash import Experiment
+import os
 
 env = gym.make('Pusher3Dof2Pixel-v0') # sim
 env2 = gym.make('Pusher3Dof2Pixel-v0') # real
 
+parser = argparse.ArgumentParser(description='sim2real data collector - pusher3dof2')
+
+parser.add_argument('--tr', default=1, type=float, help='torques real')
+parser.add_argument('--ts', default=1, type=float, help='torques sim')
+parser.add_argument('--ds', default=1, type=int, help='dataset id')
+parser.add_argument('--act', default=1, type=int, help='steps between actions')
+parser.add_argument('--samples', default=1000, type=int, help='how big should the dataset be')
+
+args = parser.parse_args()
+
+print ("DBG: GOT TORQUES: R {}, S {} AND DATASET ID {}".format(args.tr, args.ts, args.ds))
+
+
 env.env.env._init( # sim
-    torques=[.85, .85, .85],
+    torques=[args.ts, args.ts, args.ts],
     colored=True
 )
 env.reset()
 
 env2.env.env._init( # real
-    torques=[1, 1, 1],
+    torques=[args.tr, args.tr, args.tr],
     colored=False
 )
 env.reset()
@@ -30,13 +43,17 @@ image_dim = (128, 128, 3)
 observation_dim = int(env.observation_space[0].shape[0])
 action_dim = int(env.action_space.shape[0])
 rng = np.random.RandomState(seed=22)
-max_steps = 2
+max_steps = args.samples
 episode_length = 100 # how many steps max in each rollout?
 split = 0.90
-action_steps = 5
+action_steps = args.act
 
 # Creating the h5 dataset
-name = '/Tmp/mujoco_data_pusher3dof_1n085.h5'
+name = '/Tmp/mujoco_data_pusher3dof_{}_tr-{}_ts-{}_act-{}.h5'.format(args.ds, args.tr, args.ts, args.act)
+
+if os.path.isfile(name):
+    raise Exception("Dataset already exists")
+  
 assert 0 < split <= 1
 size_train = math.floor(max_steps * split)
 size_val = math.ceil(max_steps * (1 - split))
