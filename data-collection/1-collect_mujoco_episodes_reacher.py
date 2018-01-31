@@ -41,7 +41,8 @@ env.env.env._init( #"simulator"
 env2.env.env._init( # real robot
     torque0=200, # torque of joint 1
     torque1=200,  # torque of joint 2
-    topDown=True
+    topDown=True,
+    xml="reacher-backlash.xml"
 )
 
 image_dim = (128, 128, 3)
@@ -54,10 +55,10 @@ split = 0.90
 action_steps = args.act
 
 # Creating the h5 dataset
-name = '/Tmp/mujoco_data_reacher_{}_t1-{}_t2-{}.h5'.format(args.ds, args.t1, args.t2)
+name = '/Tmp/alitaiga/mujoco_data_reacher_{}_t1-{}_t2-{}.h5'.format(args.ds, args.t1, args.t2)
 
-if os.path.isfile(name):
-    raise Exception("Dataset already exists")
+# if os.path.isfile(name):
+#     raise Exception("Dataset already exists")
 
 assert 0 < split <= 1
 size_train = math.floor(max_steps * split)

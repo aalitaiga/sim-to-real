@@ -6,16 +6,17 @@ import gym
 import gym_throwandpush
 import numpy as np
 from scipy.misc import imresize
-from utils.buffer_images import BufferImages as Buffer
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from hyperdash import Experiment
+# from hyperdash import Experiment
 
 env = gym.make('Pusher3Dof2Pixel-v0') # sim
 env2 = gym.make('Pusher3Dof2Pixel-v0') # real
 
 env.env.env._init( # sim
-    torques=[.85, .85, .85],
+    # torques=[.85, .85, .85],
+    torques=[1, 1, 1],
+    xml='3link_gripper_push_2d_backlash',
     colored=True
 )
 env.reset()
@@ -30,13 +31,13 @@ image_dim = (128, 128, 3)
 observation_dim = int(env.observation_space[0].shape[0])
 action_dim = int(env.action_space.shape[0])
 rng = np.random.RandomState(seed=22)
-max_steps = 2
+max_steps = 1000
 episode_length = 100 # how many steps max in each rollout?
 split = 0.90
 action_steps = 5
 
 # Creating the h5 dataset
-name = '/Tmp/mujoco_data_pusher3dof_1n085.h5'
+name = '/Tmp/alitaiga/mujoco_data_pusher3dof_5ac_backl.h5'
 assert 0 < split <= 1
 size_train = math.floor(max_steps * split)
 size_val = math.ceil(max_steps * (1 - split))
@@ -86,10 +87,10 @@ def match_env(ev1, ev2):
 
 i = 0
 
-exp = Experiment("dataset pusher")
+# exp = Experiment("dataset pusher")
 
 for i in tqdm(range(max_steps)):
-    exp.metric("episode", i)
+    # exp.metric("episode", i)
     obs = env.reset()
     obs2 = env2.reset()
     match_env(env, env2)
@@ -123,9 +124,6 @@ for i in tqdm(range(max_steps)):
         if done2:
             # print("Episode finished after {} timesteps".format(t+1))
             break
-
-    if i % 200 == 0:
-        print("Buffer currently filled at: {}%".format(int(i*100./max_steps)))
 
     if i % 100 == 0:
         print ("{} done".format(i))

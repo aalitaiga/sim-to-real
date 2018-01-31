@@ -16,17 +16,14 @@ class LstmSimpleNet(nn.Module):
         self.linear = nn.Linear(HIDDEN_NODES, 4)
         self.hidden = self.init_hidden()
 
-    def zero_hidden(self):
-        # print(dir(self.hidden[0]))
-        self.hidden[0].data.zero_()
-        self.hidden[1].data.zero_()
-
     def init_hidden(self):
         # the 1 here in the middle is the minibatch size
-        h, c = (autograd.Variable(torch.zeros(LSTM_LAYERS, 1, HIDDEN_NODES), requires_grad=False),
-                autograd.Variable(torch.zeros(LSTM_LAYERS, 1, HIDDEN_NODES), requires_grad=False))
         if CUDA:
-            return h.cuda(), c.cuda()
+            h, c = (autograd.Variable(torch.zeros(LSTM_LAYERS, 1, HIDDEN_NODES).cuda(), requires_grad=False),
+                    autograd.Variable(torch.zeros(LSTM_LAYERS, 1, HIDDEN_NODES).cuda(), requires_grad=False))
+        else:
+            h, c = (autograd.Variable(torch.zeros(LSTM_LAYERS, 1, HIDDEN_NODES), requires_grad=False),
+                    autograd.Variable(torch.zeros(LSTM_LAYERS, 1, HIDDEN_NODES), requires_grad=False))
         return h, c
 
     def zero_hidden(self):

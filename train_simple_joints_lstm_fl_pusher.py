@@ -4,10 +4,13 @@ import numpy as np
 from torch import autograd, nn, optim, torch
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
+from fuel.streams import DataStream
+from fuel.schemes import ShuffledScheme
+from fuel.datasets.hdf5 import H5PYDataset
 
 # absolute imports here, so that you can run the file directly
 from simple_joints_lstm.lstm_simple_net2_pusher import LstmSimpleNet2Pusher
-from simple_joints_lstm.mujoco_traintest_dataset_pusher import MujocoTraintestPusherDataset
+from simple_joints_lstm.mujoco_dataset_pusher3dof import MujocoPusher3DofDataset
 from simple_joints_lstm.params_adrien import *
 from utils.plot import VisdomExt
 import os
@@ -19,12 +22,14 @@ try:
 except:
     hyperdash_support = False
 
-dataset = MujocoTraintestPusherDataset(DATASET_PATH, for_training=TRAIN)
-
 # batch size has to be 1, otherwise the LSTM doesn't know what to do
-dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
+# dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
+train_data = H5PYDataset(
+    DATASET_PATH, which_sets=('train',), sources=('s_transition_obs','r_transition_obs')
+)
+stream_train = DataStream(train_data, iteration_scheme=ShuffledScheme(train_data.num_examples, 1))
 
-net = LstmSimpleNet2Pusher()
+net = LstmSimpleNet2Pusher(8)
 
 print(net)
 
@@ -41,16 +46,19 @@ dict(title='Diff loss', xlabel='iteration', ylabel='error')])
 
 
 def makeIntoVariables(dataslice):
+    # import ipdb; ipdb.set_trace()
+    # if CUDA:
+    #     return x.cuda()[0], y.cuda()[0]
     x, y = autograd.Variable(
-        dataslice["state_next_sim_joints"],
+        # Don't predict palet and goal position
+        torch.from_numpy(dataslice["s_transition_obs"][:,:,:-4]).cuda(),
         requires_grad=False
     ), autograd.Variable(
-        dataslice["state_next_real_joints"],
+        torch.from_numpy(dataslice["r_transition_obs"][:,:,:-4]).cuda(),
         requires_grad=False
     )
-    if CUDA:
-        return x.cuda()[0], y.cuda()[0]
-    return x[0], y[0]  # because we have minibatch_size=1
+
+    return x, y  # because we have minibatch_size=1
 
 
 def printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len_episode):
@@ -132,44 +140,34 @@ for epoch_idx in np.arange(EPOCHS):
 
     loss_epoch = 0
     diff_epoch = 0
+    iterator = stream_train.get_epoch_iterator(as_dict=True)
 
-    for episode_idx, data in enumerate(dataloader):
+    for episode_idx, data in enumerate(iterator):
         x, y = makeIntoVariables(data)
-        # diff_episode = F.mse_loss(x.data, y.data).data.cpu()[0]
 
         # reset hidden lstm units
+        net.zero_grad()
         net.zero_hidden()
+        optimizer.zero_grad()
 
-        loss_episode = 0
-        diff_episode = 0
-        if TRAIN:
-            optimizer.zero_grad()
+        correction = net.forward(x)
+        loss = loss_function(x+correction, y).mean()
+        loss.backward()
 
-        # iterate over episode frames
-        for frame_idx in np.arange(len(x)):
+        optimizer.step()
 
-            prediction = net.forward(x[frame_idx])
-            loss = loss_function(prediction, y[frame_idx].view(1, -1))
-
-            loss_episode += loss.data.cpu()[0]
-            diff_episode += F.mse_loss(x[frame_idx].data, y[frame_idx].data).data.cpu()[0]
-
-            if TRAIN:
-                loss.backward(retain_graph=True)
-
-        if TRAIN:
-            optimizer.step()
-
-        loss.detach_()
-        net.hidden[0].detach_()
-        net.hidden[1].detach_()
-
-        printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len(x))
-        viz.update((epoch_idx+1)*episode_idx, loss_episode, "loss")
-        viz.update((epoch_idx+1)*episode_idx, diff_episode, "diff")
+        loss_episode = loss.clone().cpu().data.numpy()[0]
+        diff_episode = F.mse_loss(x, y).clone().cpu().data.numpy()[0]
+        # import ipdb; ipdb.set_trace()
+        printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, 100)
+        viz.update(epoch_idx*train_data.num_examples+episode_idx, loss_episode, "loss")
+        viz.update(epoch_idx*train_data.num_examples+episode_idx, diff_episode, "diff")
 
         loss_epoch += loss_episode
         diff_epoch += diff_episode
+        loss.detach_()
+        net.hidden[0].detach_()
+        net.hidden[1].detach_()
 
     printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch)
     if TRAIN:
