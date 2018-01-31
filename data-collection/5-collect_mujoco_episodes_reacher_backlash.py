@@ -42,12 +42,12 @@ observation_dim = int(env.observation_space[0].shape[0])
 action_dim = int(env.action_space.shape[0])
 rng = np.random.RandomState(seed=1337)
 max_steps = args.samples
-episode_length = 50
+episode_length = 50 # Reacher has max 50 episodes
 split = 0.90
 action_steps = args.act
 
 # Creating the h5 dataset
-name = '/Tmp/mujoco_data_reacher_{}_.h5'.format(args.ds, args.t1, args.t2)
+name = '/Tmp/mujoco_data_reacher_backlash_{}_act-{}.h5'.format(args.ds, args.act)
 
 if os.path.isfile(name):
     raise Exception("Dataset already exists")
