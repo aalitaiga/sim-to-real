@@ -11,7 +11,7 @@ from fuel.datasets.hdf5 import H5PYDataset
 # absolute imports here, so that you can run the file directly
 from simple_joints_lstm.lstm_simple_net2_pusher import LstmSimpleNet2Pusher
 from simple_joints_lstm.mujoco_dataset_pusher3dof import MujocoPusher3DofDataset
-from simple_joints_lstm.params_adrien import *
+# from simple_joints_lstm.params_adrien import *
 from utils.plot import VisdomExt
 import os
 
@@ -22,12 +22,36 @@ try:
 except:
     hyperdash_support = False
 
-# batch size has to be 1, otherwise the LSTM doesn't know what to do
-# dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
+HIDDEN_NODES = 128
+LSTM_LAYERS = 3
+EXPERIMENT = 1
+EPOCHS = 150
+DATASET_PATH_REL = "/data/lisa/data/sim2real/"
+# DATASET_PATH_REL = "/lindata/sim2real/"
+DATASET_PATH = DATASET_PATH_REL + "mujoco_data_pusher3dof_1ac_backl.h5"
+MODEL_PATH = "./trained_models/simple_lstm_pusher2{}_v1_{}l_{}.pt".format(
+    EXPERIMENT,
+    LSTM_LAYERS,
+    HIDDEN_NODES
+)
+MODEL_PATH_BEST = "./trained_models/simple_lstm_pusher2{}_v1_{}l_{}_best.pt".format(
+    EXPERIMENT,
+    LSTM_LAYERS,
+    HIDDEN_NODES
+)
+TRAIN = True
+CONTINUE = False
+CUDA = True
+
+batch_size = 1
 train_data = H5PYDataset(
     DATASET_PATH, which_sets=('train',), sources=('s_transition_obs','r_transition_obs')
 )
-stream_train = DataStream(train_data, iteration_scheme=ShuffledScheme(train_data.num_examples, 1))
+stream_train = DataStream(train_data, iteration_scheme=ShuffledScheme(train_data.num_examples, batch_size))
+valid_data = H5PYDataset(
+    DATASET_PATH, which_sets=('valid',), sources=('s_transition_obs','r_transition_obs')
+)
+stream_valid = DataStream(train_data, iteration_scheme=ShuffledScheme(train_data.num_examples, batch_size))
 
 net = LstmSimpleNet2Pusher(8)
 
@@ -36,19 +60,11 @@ print(net)
 if CUDA:
     net.cuda()
 
-if TRAIN:
-    print("STARTING IN TRAINING MODE")
-else:
-    print("STARTING IN VALIDATION MODE")
-
-viz = VisdomExt([["loss"],["diff"]],[dict(title='LSTM loss', xlabel='iteration', ylabel='loss'),
+viz = VisdomExt([["loss", "validation loss"],["diff"]],[dict(title='LSTM loss', xlabel='iteration', ylabel='loss'),
 dict(title='Diff loss', xlabel='iteration', ylabel='error')])
 
 
 def makeIntoVariables(dataslice):
-    # import ipdb; ipdb.set_trace()
-    # if CUDA:
-    #     return x.cuda()[0], y.cuda()[0]
     x, y = autograd.Variable(
         # Don't predict palet and goal position
         torch.from_numpy(dataslice["s_transition_obs"][:,:,:-4]).cuda(),
@@ -57,8 +73,7 @@ def makeIntoVariables(dataslice):
         torch.from_numpy(dataslice["r_transition_obs"][:,:,:-4]).cuda(),
         requires_grad=False
     )
-
-    return x, y  # because we have minibatch_size=1
+    return x, y
 
 
 def printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len_episode):
@@ -136,13 +151,13 @@ else:
 
 loss_history = [999999999]  # very high loss because loss can't be empty for min()
 
-for epoch_idx in np.arange(EPOCHS):
+for epoch in np.arange(EPOCHS):
 
     loss_epoch = 0
     diff_epoch = 0
     iterator = stream_train.get_epoch_iterator(as_dict=True)
 
-    for episode_idx, data in enumerate(iterator):
+    for epi, data in enumerate(iterator):
         x, y = makeIntoVariables(data)
 
         # reset hidden lstm units
@@ -158,10 +173,9 @@ for epoch_idx in np.arange(EPOCHS):
 
         loss_episode = loss.clone().cpu().data.numpy()[0]
         diff_episode = F.mse_loss(x, y).clone().cpu().data.numpy()[0]
-        # import ipdb; ipdb.set_trace()
-        printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, 100)
-        viz.update(epoch_idx*train_data.num_examples+episode_idx, loss_episode, "loss")
-        viz.update(epoch_idx*train_data.num_examples+episode_idx, diff_episode, "diff")
+        # printEpisodeLoss(epoch, epi, loss_episode, diff_episode, 100)
+        viz.update(epoch*train_data.num_examples+epi, loss_episode, "loss")
+        viz.update(epoch*train_data.num_examples+epi, diff_episode, "diff")
 
         loss_epoch += loss_episode
         diff_epoch += diff_episode
@@ -169,12 +183,12 @@ for epoch_idx in np.arange(EPOCHS):
         net.hidden[0].detach_()
         net.hidden[1].detach_()
 
-    printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch)
+    printEpochLoss(epoch, epi, loss_epoch, diff_epoch)
     if TRAIN:
         saveModel(
             state=net.state_dict(),
-            epoch=epoch_idx,
-            episode_idx=episode_idx,
+            epoch=epoch,
+            episode_idx=epi,
             loss_epoch=loss_epoch,
             diff_epoch=diff_epoch,
             is_best=(loss_epoch < min(loss_history))
@@ -183,6 +197,17 @@ for epoch_idx in np.arange(EPOCHS):
     else:
         print(old_model_string)
         break
+
+    # Validation step
+    loss_total = []
+    iterator = stream_valid.get_epoch_iterator(as_dict=True)
+    for epi, data in enumerate(iterator):
+        x, y = makeIntoVariables(data)
+        net.zero_hidden()
+        correction = net.forward(x)
+        loss = loss_function(x+correction, y).mean()
+        loss_total.append(loss.clone().cpu().data.numpy()[0])
+    viz.update(epoch*train_data.num_examples, np.mean(loss_total), "validation loss")
 
 # Cleanup and mark that the experiment successfully completed
 if hyperdash_support:

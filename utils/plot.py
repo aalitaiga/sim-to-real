@@ -26,7 +26,7 @@ class VisdomExt():
             # we have to initialize the plot with some data, but NaNs are ignored
             dummy_data = [np.nan] * len(channel_set)
             dummy_ind = [0.] * len(channel_set)
-            # channel_set_opts.update(dict(legend=channel_set))
+            channel_set_opts.update(dict(legend=channel_set))
             for channel in channel_set:
                 self.p[channel] = i
 
