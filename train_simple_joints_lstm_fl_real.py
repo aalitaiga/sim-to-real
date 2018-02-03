@@ -77,31 +77,39 @@ def makeIntoVariables(dataslice):
 def printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len_episode):
     loss_avg = round(float(loss_episode) / len_episode, 2)
     diff_avg = round(float(diff_episode) / len_episode, 2)
-    print("epoch {}, episode {}, "
-          "loss: {}, loss avg: {}, "
-          "diff: {}, diff avg: {}".format(
-        epoch_idx,
-        episode_idx,
-        round(loss_episode, 2),
-        loss_avg,
-        round(diff_episode, 2),
-        diff_avg
-    ))
+    # print("epoch {}, episode {}, "
+    #       "loss: {}, loss avg: {}, "
+    #       "diff: {}, diff avg: {}".format(
+    #     epoch_idx,
+    #     episode_idx,
+    #     round(loss_episode, 2),
+    #     loss_avg,
+    #     round(diff_episode, 2),
+    #     diff_avg
+    # ))
     if hyperdash_support:
+        exp.metric("epoch", epoch_idx)
         exp.metric("diff avg", diff_avg)
         exp.metric("loss avg", loss_avg)
 
 
 def printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch):
+    loss_avg = round(float(loss_epoch) / (episode_idx + 1), 2),
+    diff_avg = round(float(diff_epoch) / (episode_idx + 1), 2)
     print("epoch {}, "
           "loss: {}, loss avg: {}, "
           "diff: {}, diff avg: {}".format(
         epoch_idx,
         round(loss_epoch, 2),
-        round(float(loss_epoch) / (episode_idx + 1), 2),
+        loss_avg,
         round(diff_epoch, 2),
-        round(float(diff_epoch) / (episode_idx + 1), 2)
+        diff_avg
     ))
+
+    if hyperdash_support:
+        exp.metric("epoch", epoch_idx)
+        exp.metric("diff avg", diff_avg)
+        exp.metric("loss avg", loss_avg)
 
 
 def saveModel(state, epoch, loss_epoch, diff_epoch, is_best, episode_idx):
