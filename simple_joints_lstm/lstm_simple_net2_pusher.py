@@ -5,13 +5,13 @@ from .params_pusher import *
 
 
 class LstmSimpleNet2Pusher(nn.Module):
-    def __init__(self, n_input=8):
+    def __init__(self, n_input=15, n_output=6):
         super(LstmSimpleNet2Pusher, self).__init__()
 
         # because the LSTM is looking at 1 element at a time, and each element has 4 values
         self.linear1 = nn.Linear(n_input, HIDDEN_NODES)
         self.lstm1 = nn.LSTM(HIDDEN_NODES, HIDDEN_NODES, LSTM_LAYERS)
-        self.linear2 = nn.Linear(HIDDEN_NODES, n_input)
+        self.linear2 = nn.Linear(HIDDEN_NODES, n_output)
 
         self.hidden = self.init_hidden()
 
@@ -31,7 +31,7 @@ class LstmSimpleNet2Pusher(nn.Module):
     def forward(self, data_in):
         # the view is to add the minibatch dimension (which is 1)
         # print(data_in.view(1, 1, -1).size())
-        # import ipdb; ipdb.set_trace()
+
         out = F.leaky_relu(self.linear1(data_in))
         out, self.hidden = self.lstm1(out.permute((1,0,2)), self.hidden)
         out = F.leaky_relu(out.permute((1,0,2)))
