@@ -5,10 +5,11 @@ from torch.utils.data import Dataset
 import h5py
 import numpy as np
 
+
 class DatasetRealPosVel(Dataset):
     """loads the rea h5 recording file (but only pos, vel, actions) and makes it available for pytorch training"""
 
-    def __init__(self, path_prefix, for_training=True):
+    def __init__(self, path_prefix, for_training=True, with_velocities=True):
         """
         Args:
             h5_file (string): Path to the h5 file
@@ -17,11 +18,11 @@ class DatasetRealPosVel(Dataset):
         super(DatasetRealPosVel, self).__init__()
         self.for_training = for_training
         self.path_prefix = path_prefix
+        self.with_velocities = with_velocities
 
         self.fn_pattern = "dataset-{}-{}.hdf5"
         self.open_file_names = []
         self.open_file_handles = []
-
 
         ## dataset has 1490 entries
         ## out of which 0-199 are for validation
@@ -48,7 +49,7 @@ class DatasetRealPosVel(Dataset):
         ## find the name of the dataset to open
         file_lower = int(math.floor(idx / 100) * 10)
         if self.for_training:
-            file_lower += 20 # +20 is from train/test offset
+            file_lower += 20  # +20 is from train/test offset
         file_upper = file_lower + 10
         if file_lower == 140:
             file_upper = 149
@@ -66,7 +67,7 @@ class DatasetRealPosVel(Dataset):
         ## within the HDF5 file.
         file_idx = int(math.floor(idx / 10)) - file_lower
         if self.for_training:
-            file_idx += 20 # +20 is from train/test offset
+            file_idx += 20  # +20 is from train/test offset
 
         episode_idx = idx % 10
 
@@ -79,7 +80,7 @@ class DatasetRealPosVel(Dataset):
 
         current_action = file_handle.get("current_action")[file_idx, episode_idx]
 
-        non_zero = np.unique(np.nonzero(current_pos_real)[0],axis=0)
+        non_zero = np.unique(np.nonzero(current_pos_real)[0], axis=0)
         # print (current_pos_real[non_zero].shape) ## something like (263,6) or (258,6)
         # print (current_vel_real[non_zero].shape) ## the length / number of frames of each episode is different
         # print (next_pos_sim[non_zero].shape)  ## and varies in in [60,273]
@@ -88,15 +89,23 @@ class DatasetRealPosVel(Dataset):
         # print (next_vel_real[non_zero].shape)
         # print (current_action[non_zero].shape)
 
+        if self.with_velocities:
+            current_state_real = np.hstack((current_pos_real[non_zero], current_vel_real[non_zero]))
+            next_state_sim = np.hstack((next_pos_sim[non_zero], next_vel_sim[non_zero]))
+            next_state_real = np.hstack((next_pos_real[non_zero], next_vel_real[non_zero]))
+        else:
+            current_state_real = current_pos_real[non_zero]
+            next_state_sim = next_pos_sim[non_zero]
+            next_state_real = next_pos_real[non_zero]
+
         episode = {
-            'state_current_real_joints': torch.from_numpy(current_pos_real[non_zero]),
-            'state_next_sim_joints': torch.from_numpy(next_pos_sim[non_zero]),
-            'state_next_real_joints': torch.from_numpy(next_pos_real[non_zero]),
+            'state_current_real_joints': torch.from_numpy(current_state_real),
+            'state_next_sim_joints': torch.from_numpy(next_state_sim),
+            'state_next_real_joints': torch.from_numpy(next_state_real),
             'action': torch.from_numpy(current_action[non_zero])
         }
 
         return episode
-
 
 
 if __name__ == '__main__':
@@ -106,7 +115,6 @@ if __name__ == '__main__':
     dsr = DatasetRealPosVel("/windata/sim2real-full/done/", for_training=True)
     print("len train", len(dsr))
 
-    print (dsr[15])
+    print(dsr[15])
 
     # print (dsr[15]["state_next_real_joints"][:50])
-

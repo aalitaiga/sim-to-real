@@ -10,9 +10,7 @@ from fuel.datasets.hdf5 import H5PYDataset
 
 # absolute imports here, so that you can run the file directly
 from simple_joints_lstm.dataset_real import DatasetRealPosVel
-from simple_joints_lstm.lstm_simple_net2_pusher import LstmSimpleNet2Pusher
 from simple_joints_lstm.lstm_simple_net2_real import LstmSimpleNet2Real
-from simple_joints_lstm.mujoco_dataset_pusher3dof import MujocoPusher3DofDataset
 # from simple_joints_lstm.params_adrien import *
 from utils.plot import VisdomExt
 import os
@@ -27,7 +25,7 @@ except:
 HIDDEN_NODES = 128
 LSTM_LAYERS = 3
 EXPERIMENT = 1
-EPOCHS = 150
+EPOCHS = 200
 DATASET_PATH = "/windata/sim2real-full/done/"
 MODEL_PATH = "./trained_models/simple_lstm_real{}_v1_{}l_{}.pt".format(
     EXPERIMENT,
@@ -44,14 +42,14 @@ CONTINUE = False
 CUDA = True
 BATCH_SIZE = 1
 
-dataset_train = DatasetRealPosVel(DATASET_PATH, for_training=True)
-dataset_test = DatasetRealPosVel(DATASET_PATH, for_training=False)
+dataset_train = DatasetRealPosVel(DATASET_PATH, for_training=True, with_velocities=True)
+dataset_test = DatasetRealPosVel(DATASET_PATH, for_training=False, with_velocities=True)
 
 # batch size has to be 1, otherwise the LSTM doesn't know what to do
 dataloader_train = DataLoader(dataset_train, batch_size=BATCH_SIZE, shuffle=True, num_workers=1)
 dataloader_test = DataLoader(dataset_test, batch_size=BATCH_SIZE, shuffle=True, num_workers=1)
 
-net = LstmSimpleNet2Real(n_input_state=6, n_input_actions=6)
+net = LstmSimpleNet2Real(n_input_state_sim=12, n_input_state_real=12, n_input_actions=6)
 
 if CUDA:
     net.cuda()
@@ -62,11 +60,12 @@ dict(title='Diff loss', xlabel='iteration', ylabel='error')])
 
 def makeIntoVariables(dataslice):
     x, y = (autograd.Variable(
-        # Don't predict palet and goal position
         dataslice["state_next_sim_joints"][:,:,:].cuda(),
         requires_grad=False
     ),autograd.Variable(
-        # Don't predict palet and goal position
+        dataslice["state_current_real_joints"][:,:,:].cuda(),
+        requires_grad=False
+    ),autograd.Variable(
         dataslice["action"][:,:,:].cuda(),
         requires_grad=False
     )), autograd.Variable(
@@ -136,7 +135,7 @@ def loadModel(optional=True):
 
 loss_function = nn.MSELoss()
 if hyperdash_support:
-    exp = Experiment("simple lstm - pusher")
+    exp = Experiment("simple lstm - real")
     exp.param("layers", LSTM_LAYERS)
     exp.param("nodes", HIDDEN_NODES)
 
