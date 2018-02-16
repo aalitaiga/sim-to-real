@@ -88,13 +88,12 @@ def printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len_epi
     #     diff_avg
     # ))
     if hyperdash_support:
-        exp.metric("epoch", epoch_idx)
         exp.metric("diff avg", diff_avg)
         exp.metric("loss avg", loss_avg)
 
 
 def printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch):
-    loss_avg = round(float(loss_epoch) / (episode_idx + 1), 2),
+    loss_avg = round(float(loss_epoch) / (episode_idx + 1), 2)
     diff_avg = round(float(diff_epoch) / (episode_idx + 1), 2)
     print("epoch {}, "
           "loss: {}, loss avg: {}, "
@@ -108,8 +107,8 @@ def printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch):
 
     if hyperdash_support:
         exp.metric("epoch", epoch_idx)
-        exp.metric("diff avg", diff_avg)
-        exp.metric("loss avg", loss_avg)
+        exp.metric("diff train epoch avg", diff_avg)
+        exp.metric("loss train epoch avg", loss_avg)
 
 
 def saveModel(state, epoch, loss_epoch, diff_epoch, is_best, episode_idx):
@@ -181,6 +180,10 @@ for epoch in np.arange(EPOCHS):
         # printEpisodeLoss(epoch, epi, loss_episode, diff_episode, 100)
         viz.update(epoch*1290+epi, loss_episode, "loss")
         viz.update(epoch*1290+epi, diff_episode, "diff")
+        if hyperdash_support:
+            exp.metric("loss train", loss_episode)
+            exp.metric("diff train", diff_episode)
+            exp.metric("epoch", epoch)
 
         loss_epoch += loss_episode
         diff_epoch += diff_episode
@@ -205,6 +208,7 @@ for epoch in np.arange(EPOCHS):
 
     # Validation step
     loss_total = []
+    diff_total = []
 
     for epi, data in enumerate(dataloader_test):
         x, y = makeIntoVariables(data)
@@ -212,7 +216,12 @@ for epoch in np.arange(EPOCHS):
         correction = net.forward(x)
         loss = loss_function(x[0]+correction, y).mean()
         loss_total.append(loss.clone().cpu().data.numpy()[0])
+        diff_total.append(F.mse_loss(x[0], y).clone().cpu().data.numpy()[0])
     viz.update(epoch*1290, np.mean(loss_total), "validation loss")
+    if hyperdash_support:
+        exp.metric("loss test mean", np.mean(loss_total))
+        exp.metric("diff test mean", np.mean(diff_total))
+        exp.metric("epoch", epoch)
 
 # Cleanup and mark that the experiment successfully completed
 if hyperdash_support:
