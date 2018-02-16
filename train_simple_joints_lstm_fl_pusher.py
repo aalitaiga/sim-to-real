@@ -10,7 +10,6 @@ from fuel.datasets.hdf5 import H5PYDataset
 
 # absolute imports here, so that you can run the file directly
 from simple_joints_lstm.lstm_simple_net2_pusher import LstmSimpleNet2Pusher
-from simple_joints_lstm.mujoco_dataset_pusher3dof import MujocoPusher3DofDataset
 # from simple_joints_lstm.params_adrien import *
 from utils.plot import VisdomExt
 import os
@@ -25,19 +24,19 @@ except:
 HIDDEN_NODES = 128
 LSTM_LAYERS = 3
 EXPERIMENT = 1
-EPOCHS = 150
+EPOCHS = 200
 DATASET_PATH_REL = "/data/lisa/data/sim2real/"
 # DATASET_PATH_REL = "/lindata/sim2real/"
-DATASET_PATH = DATASET_PATH_REL + "mujoco_data_pusher3dof_1ac_backl.h5"
-MODEL_PATH = "./trained_models/simple_lstm_pusher2{}_v1_{}l_{}.pt".format(
-    EXPERIMENT,
+DATASET_PATH = DATASET_PATH_REL + "mujoco_data_pusher3dof_5ac_backl.h5"
+MODEL_PATH = "./trained_models/lstm_pusher_5ac_{}l_{}_ep{}.pt".format(
     LSTM_LAYERS,
-    HIDDEN_NODES
+    HIDDEN_NODES,
+    EPOCHS
 )
-MODEL_PATH_BEST = "./trained_models/simple_lstm_pusher2{}_v1_{}l_{}_best.pt".format(
-    EXPERIMENT,
+MODEL_PATH_BEST = "./trained_models/lstm_pusher_5ac_{}l_{}_ep{}_best.pt".format(
     LSTM_LAYERS,
-    HIDDEN_NODES
+    HIDDEN_NODES,
+    EPOCHS
 )
 TRAIN = True
 CONTINUE = False
@@ -45,7 +44,7 @@ CUDA = True
 
 batch_size = 1
 train_data = H5PYDataset(
-    DATASET_PATH, which_sets=('train',), sources=('s_transition_obs','r_transition_obs')
+    DATASET_PATH, which_sets=('train',), sources=('s_transition_obs','r_transition_obs', 'obs', 'actions')
 )
 stream_train = DataStream(train_data, iteration_scheme=ShuffledScheme(train_data.num_examples, batch_size))
 valid_data = H5PYDataset(
@@ -53,7 +52,7 @@ valid_data = H5PYDataset(
 )
 stream_valid = DataStream(train_data, iteration_scheme=ShuffledScheme(train_data.num_examples, batch_size))
 
-net = LstmSimpleNet2Pusher(8)
+net = LstmSimpleNet2Pusher(15, 6)
 
 print(net)
 
@@ -64,13 +63,14 @@ viz = VisdomExt([["loss", "validation loss"],["diff"]],[dict(title='LSTM loss', 
 dict(title='Diff loss', xlabel='iteration', ylabel='error')])
 
 
-def makeIntoVariables(dataslice):
+def makeIntoVariables(dat):
+    input_ = np.concatenate([dat["obs"][:,:,:6], dat["actions"], dat["s_transition_obs"][:,:,:6]], axis=2)
     x, y = autograd.Variable(
         # Don't predict palet and goal position
-        torch.from_numpy(dataslice["s_transition_obs"][:,:,:-4]).cuda(),
+        torch.from_numpy(input_).cuda(),
         requires_grad=False
     ), autograd.Variable(
-        torch.from_numpy(dataslice["r_transition_obs"][:,:,:-4]).cuda(),
+        torch.from_numpy(dat["r_transition_obs"][:,:,:6]).cuda(),
         requires_grad=False
     )
     return x, y
@@ -149,7 +149,7 @@ if TRAIN:
 else:
     old_model_string = loadModel(optional=False)
 
-loss_history = [999999999]  # very high loss because loss can't be empty for min()
+loss_min = float('inf')  # very high loss because loss can't be empty for min()
 
 for epoch in np.arange(EPOCHS):
 
@@ -166,13 +166,13 @@ for epoch in np.arange(EPOCHS):
         optimizer.zero_grad()
 
         correction = net.forward(x)
-        loss = loss_function(x+correction, y).mean()
+        loss = loss_function(x[:,:,-6:]+correction, y).mean()
         loss.backward()
 
         optimizer.step()
 
         loss_episode = loss.clone().cpu().data.numpy()[0]
-        diff_episode = F.mse_loss(x, y).clone().cpu().data.numpy()[0]
+        diff_episode = F.mse_loss(x[:,:,-6:], y).clone().cpu().data.numpy()[0]
         # printEpisodeLoss(epoch, epi, loss_episode, diff_episode, 100)
         viz.update(epoch*train_data.num_examples+epi, loss_episode, "loss")
         viz.update(epoch*train_data.num_examples+epi, diff_episode, "diff")
@@ -184,19 +184,7 @@ for epoch in np.arange(EPOCHS):
         net.hidden[1].detach_()
 
     printEpochLoss(epoch, epi, loss_epoch, diff_epoch)
-    if TRAIN:
-        saveModel(
-            state=net.state_dict(),
-            epoch=epoch,
-            episode_idx=epi,
-            loss_epoch=loss_epoch,
-            diff_epoch=diff_epoch,
-            is_best=(loss_epoch < min(loss_history))
-        )
-        loss_history.append(loss_epoch)
-    else:
-        print(old_model_string)
-        break
+
 
     # Validation step
     loss_total = []
@@ -205,9 +193,24 @@ for epoch in np.arange(EPOCHS):
         x, y = makeIntoVariables(data)
         net.zero_hidden()
         correction = net.forward(x)
-        loss = loss_function(x+correction, y).mean()
+        loss = loss_function(x[:,:,-6:]+correction, y).mean()
         loss_total.append(loss.clone().cpu().data.numpy()[0])
-    viz.update(epoch*train_data.num_examples, np.mean(loss_total), "validation loss")
+    loss_valid = np.mean(loss_total)
+    viz.update(epoch*train_data.num_examples, loss_valid, "validation loss")
+
+    if TRAIN:
+        saveModel(
+            state=net.state_dict(),
+            epoch=epoch,
+            episode_idx=epi,
+            loss_epoch=loss_epoch,
+            diff_epoch=diff_epoch,
+            is_best=(loss_valid <= loss_min)
+        )
+        loss_min = min(loss_min, loss_valid)
+    else:
+        print(old_model_string)
+        break
 
 # Cleanup and mark that the experiment successfully completed
 if hyperdash_support:
