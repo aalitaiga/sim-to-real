@@ -76,6 +76,10 @@ def makeIntoVariables(dataslice):
 
 def printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len_episode):
     loss_avg = round(float(loss_episode) / len_episode, 2)
+    print (loss_avg)
+    print (type(loss_avg))
+    print (loss_episode)
+    print (type(loss_episode))
     diff_avg = round(float(diff_episode) / len_episode, 2)
     # print("epoch {}, episode {}, "
     #       "loss: {}, loss avg: {}, "
