@@ -181,6 +181,10 @@ for epoch in np.arange(EPOCHS):
         # printEpisodeLoss(epoch, epi, loss_episode, diff_episode, 100)
         viz.update(epoch*1290+epi, loss_episode, "loss")
         viz.update(epoch*1290+epi, diff_episode, "diff")
+        if hyperdash_support:
+            exp.metric("loss train", loss_episode)
+            exp.metric("diff train", diff_episode)
+            exp.metric("epoch", epoch)
 
         loss_epoch += loss_episode
         diff_epoch += diff_episode
@@ -205,6 +209,7 @@ for epoch in np.arange(EPOCHS):
 
     # Validation step
     loss_total = []
+    diff_total = []
 
     for epi, data in enumerate(dataloader_test):
         x, y = makeIntoVariables(data)
@@ -212,7 +217,12 @@ for epoch in np.arange(EPOCHS):
         correction = net.forward(x)
         loss = loss_function(x[0]+correction, y).mean()
         loss_total.append(loss.clone().cpu().data.numpy()[0])
+        diff_total.append(F.mse_loss(x[0], y).clone().cpu().data.numpy()[0])
     viz.update(epoch*1290, np.mean(loss_total), "validation loss")
+    if hyperdash_support:
+        exp.metric("loss test mean", np.mean(loss_total))
+        exp.metric("diff test mean", np.mean(diff_total))
+        exp.metric("epoch", epoch)
 
 # Cleanup and mark that the experiment successfully completed
 if hyperdash_support:
