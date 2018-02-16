@@ -93,13 +93,7 @@ def printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len_epi
 
 
 def printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch):
-    loss_avg = round(float(loss_epoch) / (episode_idx + 1), 2),
-    print ("==================== LADIDA")
-    print(loss_avg)
-    print(type(loss_avg))
-    print(loss_epoch)
-    print(type(loss_epoch))
-
+    loss_avg = round(float(loss_epoch) / (episode_idx + 1), 2)
     diff_avg = round(float(diff_epoch) / (episode_idx + 1), 2)
     print("epoch {}, "
           "loss: {}, loss avg: {}, "
@@ -113,8 +107,8 @@ def printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch):
 
     if hyperdash_support:
         exp.metric("epoch", epoch_idx)
-        exp.metric("diff avg", diff_avg)
-        exp.metric("loss avg", loss_avg)
+        exp.metric("diff train epoch avg", diff_avg)
+        exp.metric("loss train epoch avg", loss_avg)
 
 
 def saveModel(state, epoch, loss_epoch, diff_epoch, is_best, episode_idx):
