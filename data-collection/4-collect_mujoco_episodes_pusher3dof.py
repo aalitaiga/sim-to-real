@@ -16,13 +16,13 @@ env2 = gym.make('Pusher3Dof2Pixel-v0') # real
 env.env.env._init( # sim
     # torques=[.85, .85, .85],
     torques=[1, 1, 1],
-    xml='3link_gripper_push_2d_backlash',
     colored=True
 )
 env.reset()
 
 env2.env.env._init( # real
     torques=[1, 1, 1],
+    xml='3link_gripper_push_2d_backlash',
     colored=False
 )
 env.reset()
@@ -34,10 +34,10 @@ rng = np.random.RandomState(seed=22)
 max_steps = 1000
 episode_length = 100 # how many steps max in each rollout?
 split = 0.90
-action_steps = 5
+action_steps = 1
 
 # Creating the h5 dataset
-name = '/Tmp/alitaiga/mujoco_data_pusher3dof_5ac_backl.h5'
+name = '/Tmp/alitaiga/mujoco_data_pusher3dof_small_backl.h5'
 assert 0 < split <= 1
 size_train = math.floor(max_steps * split)
 size_val = math.ceil(max_steps * (1 - split))
@@ -86,10 +86,10 @@ def match_env(ev1, ev2):
     )
 
 i = 0
-
 # exp = Experiment("dataset pusher")
 
 for i in tqdm(range(max_steps)):
+# for i in range(150):
     # exp.metric("episode", i)
     obs = env.reset()
     obs2 = env2.reset()
@@ -99,22 +99,20 @@ for i in tqdm(range(max_steps)):
         # env.render()
         # env2.render()
 
-        if j % action_steps == 0:
-            action = env.action_space.sample()
-        new_obs, reward, done, info = env.step(action)
-        new_obs2, reward2, done2, info2 = env2.step(action)
-
-        # print (j, done, new_obs[0][0])
+        # if j % action_steps == 0:
+        action = env.action_space.sample()
+        new_obs, reward, done, info = env.step(action.copy())
+        new_obs2, reward2, done2, info2 = env2.step(action.copy())
 
         images[i, j, :, :, :] = imresize(obs2[1], [128, 128, 3])
-        observations[i, j, :] = obs2[0]
-        actions[i, j, :] = action
+        observations[i, j, :] = obs2[0].astype('float32')
+        actions[i, j, :] = action.astype('float32')
         s_transition_img[i, j, :, :, :] = imresize(new_obs[1], [128, 128, 3])
         r_transition_img[i, j, :, :, :] = imresize(new_obs2[1], [128, 128, 3])
-        s_transition_obs[i, j, :] = new_obs[0]
-        r_transition_obs[i, j, :] = new_obs2[0]
-        reward_sim[i] = reward
-        reward_real[i] = reward2
+        s_transition_obs[i, j, :] = new_obs[0].astype('float32')
+        r_transition_obs[i, j, :] = new_obs2[0].astype('float32')
+        reward_sim[i] = reward.astype('float32')
+        reward_real[i] = reward2.astype('float32')
 
         # we have to set the state to be the old state in the next timestep.
         # Otherwise the old state is constant
@@ -122,7 +120,6 @@ for i in tqdm(range(max_steps)):
 
         match_env(env, env2)
         if done2:
-            # print("Episode finished after {} timesteps".format(t+1))
             break
 
     if i % 100 == 0:
