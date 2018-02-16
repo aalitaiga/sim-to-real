@@ -76,10 +76,6 @@ def makeIntoVariables(dataslice):
 
 def printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len_episode):
     loss_avg = round(float(loss_episode) / len_episode, 2)
-    print (loss_avg)
-    print (type(loss_avg))
-    print (loss_episode)
-    print (type(loss_episode))
     diff_avg = round(float(diff_episode) / len_episode, 2)
     # print("epoch {}, episode {}, "
     #       "loss: {}, loss avg: {}, "
@@ -92,13 +88,18 @@ def printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len_epi
     #     diff_avg
     # ))
     if hyperdash_support:
-        exp.metric("epoch", epoch_idx)
         exp.metric("diff avg", diff_avg)
         exp.metric("loss avg", loss_avg)
 
 
 def printEpochLoss(epoch_idx, episode_idx, loss_epoch, diff_epoch):
     loss_avg = round(float(loss_epoch) / (episode_idx + 1), 2),
+    print ("==================== LADIDA")
+    print(loss_avg)
+    print(type(loss_avg))
+    print(loss_epoch)
+    print(type(loss_epoch))
+
     diff_avg = round(float(diff_epoch) / (episode_idx + 1), 2)
     print("epoch {}, "
           "loss: {}, loss avg: {}, "
