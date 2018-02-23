@@ -23,11 +23,11 @@ except:
     hyperdash_support = False
 
 HIDDEN_NODES = 128
-LSTM_LAYERS = 3
-EXPERIMENT = 1
+LSTM_LAYERS = 5
+EXPERIMENT = 3
 EPOCHS = 200
 DATASET_PATH = "/windata/sim2real-full/done/"
-MODEL_PATH = "./trained_models/simple_lstm_real{}_v1_{}l_{}.pt".format(
+MODEL_PATH = "./trained_models/simple_lstm_real_norm{}_v1_{}l_{}.pt".format(
     EXPERIMENT,
     LSTM_LAYERS,
     HIDDEN_NODES
@@ -42,8 +42,8 @@ CONTINUE = False
 CUDA = True
 BATCH_SIZE = 1
 
-dataset_train = DatasetRealPosVel(DATASET_PATH, for_training=True, with_velocities=True)
-dataset_test = DatasetRealPosVel(DATASET_PATH, for_training=False, with_velocities=True)
+dataset_train = DatasetRealPosVel(DATASET_PATH, for_training=True, with_velocities=True, normalized=True)
+dataset_test = DatasetRealPosVel(DATASET_PATH, for_training=False, with_velocities=True, normalized=True)
 
 # batch size has to be 1, otherwise the LSTM doesn't know what to do
 dataloader_train = DataLoader(dataset_train, batch_size=BATCH_SIZE, shuffle=True, num_workers=1)
