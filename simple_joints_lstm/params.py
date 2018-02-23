@@ -7,3 +7,11 @@ MODEL_PATH = "./trained_models/simple_lstm4_v1_5l_128.pt"
 MODEL_PATH_BEST = "./trained_models/simple_lstm4_v1_5l_128_best.pt"
 TRAIN = True
 CONTINUE = True
+JOINT_LIMITS = [
+    (-150, 150),
+    (-125, 125),
+    (-90, 90),
+    (-90, 90),
+    (-90, 90),
+    (-90, 90)
+]

@@ -4,9 +4,9 @@ from matplotlib import pyplot as plt
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
 
-DATASET_PATH = "/home/florian/data/sim2real/dataset-real-{}.npz" # {} is either "train" or "test"
+DATASET_PATH = "/home/florian/data/sim2real/dataset-real-{}-normalized.npz" # {} is either "train" or "test"
 
-MEM = 10000
+MEM = 1000
 
 ds_train = np.load(DATASET_PATH.format("train"))
 
@@ -31,10 +31,22 @@ gp.fit(x_train[:MEM], y_train[:MEM])
 _, sigma = gp.predict(x_train, return_std=True)
 
 print ("sigma train:",sigma)
+#for s in sigma:
+#    print(s)
+
+print ("sum:",sigma.sum())
+print ("mean:",sigma.mean())
 
 _, sigma = gp.predict(x_test, return_std=True)
 
 print ("sigma train:",sigma)
+
+#for s in sigma:
+#    print(s)
+
+print ("sum:",sigma.sum())
+print ("mean:",sigma.mean())
+
 
 
 

@@ -5,11 +5,13 @@ from torch.utils.data import Dataset
 import h5py
 import numpy as np
 
+from simple_joints_lstm.params import JOINT_LIMITS
+
 
 class DatasetRealPosVel(Dataset):
     """loads the rea h5 recording file (but only pos, vel, actions) and makes it available for pytorch training"""
 
-    def __init__(self, path_prefix, for_training=True, with_velocities=True):
+    def __init__(self, path_prefix, for_training=True, with_velocities=True, normalized=False):
         """
         Args:
             h5_file (string): Path to the h5 file
@@ -19,6 +21,7 @@ class DatasetRealPosVel(Dataset):
         self.for_training = for_training
         self.path_prefix = path_prefix
         self.with_velocities = with_velocities
+        self.normalized = normalized
 
         self.fn_pattern = "dataset-{}-{}.hdf5"
         self.open_file_names = []
@@ -31,6 +34,12 @@ class DatasetRealPosVel(Dataset):
         self.data_range = range(200, 1490)
         if not for_training:
             self.data_range = range(0, 200)
+
+        self.limits = []
+
+        for i, rang in enumerate(JOINT_LIMITS):
+            diff = JOINT_LIMITS[i][1] - JOINT_LIMITS[i][0]
+            self.limits.append({"range": diff, "min": JOINT_LIMITS[i][0]})
 
     def __len__(self):
         return len(self.data_range)
@@ -98,23 +107,43 @@ class DatasetRealPosVel(Dataset):
             next_state_sim = next_pos_sim[non_zero]
             next_state_real = next_pos_real[non_zero]
 
+        action = current_action[non_zero]
+
+        if self.normalized:
+            current_state_real[:, :6] = np.apply_along_axis(self._normalize_joints, 1, current_state_real[:, :6])
+            next_state_sim[:, :6] = np.apply_along_axis(self._normalize_joints, 1, next_state_sim[:, :6])
+            next_state_real[:, :6] = np.apply_along_axis(self._normalize_joints, 1, next_state_real[:, :6])
+
+            action[:, :] = np.apply_along_axis(self._normalize_joints, 1, action[:, :])
+
+            if self.with_velocities:
+                current_state_real[:, 6:] = np.sin(np.deg2rad(current_state_real[:, 6:]))
+                next_state_sim[:, 6:] = np.sin(next_state_sim[:, 6:])
+                next_state_real[:, 6:] = np.sin(np.deg2rad(next_state_real[:, 6:]))
+
         episode = {
             'state_current_real_joints': torch.from_numpy(current_state_real),
             'state_next_sim_joints': torch.from_numpy(next_state_sim),
             'state_next_real_joints': torch.from_numpy(next_state_real),
-            'action': torch.from_numpy(current_action[non_zero])
+            'action': torch.from_numpy(action)
         }
 
         return episode
+
+    def _normalize_joints(self, joints):
+        out = np.zeros(joints.shape, joints.dtype)
+        for i, joint in enumerate(joints):
+            out[i] = (joint - self.limits[i]["min"]) / self.limits[i]["range"]  # now it's in range [0,1]
+            out[i] *= 2
+            out[i] -= 1  # now it's in range [-1,1]
+        return out
 
 
 if __name__ == '__main__':
     dsr = DatasetRealPosVel("/windata/sim2real-full/done/", for_training=False)
     print("len test", len(dsr))
 
-    dsr = DatasetRealPosVel("/windata/sim2real-full/done/", for_training=True)
+    dsr = DatasetRealPosVel("/windata/sim2real-full/done/", for_training=True, normalized=True, with_velocities=True)
     print("len train", len(dsr))
 
-    print(dsr[15])
-
-    # print (dsr[15]["state_next_real_joints"][:50])
+    print (dsr[15]["state_next_real_joints"][:6])
