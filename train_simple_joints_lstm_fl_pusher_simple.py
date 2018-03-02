@@ -23,6 +23,8 @@ LSTM_LAYERS = 3
 EXPERIMENT = 1
 EPOCHS = 200
 ACTION_STEPS = 5
+# TRUNCATED_BACKPROP_N = 20
+# EPISODE_LEN = 100
 
 DATASET_PATH = "./data-collection/mujoco_pusher3dof_simple_{}act.npz".format(ACTION_STEPS)
 MODEL_PATH = "./trained_models/lstm_pusher3dof_simple_{}ac_{}l_{}n.pt".format(
@@ -37,7 +39,7 @@ MODEL_PATH_BEST = "./trained_models/lstm_pusher3dof_simple_{}ac_{}l_{}n_best.pt"
 )
 TRAIN = True
 CONTINUE = False
-CUDA = True
+CUDA = False
 
 print(MODEL_PATH_BEST)
 
@@ -48,13 +50,13 @@ dataloader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True
 dataset_test = MujocoTraintestPusherSimpleDataset(DATASET_PATH, for_training=False)
 dataloader_test = DataLoader(dataset_test, batch_size=batch_size, shuffle=True)
 
-
-net = LstmSimpleNet2Pusher(15, 6)
+net = LstmSimpleNet2Pusher(15, 6, use_cuda=CUDA, normalized=False)
 
 print(net)
 
 if CUDA:
     net.cuda()
+
 
 # viz = VisdomExt([["loss", "validation loss"],["diff"]],[dict(title='LSTM loss', xlabel='iteration', ylabel='loss'),
 # dict(title='Diff loss', xlabel='iteration', ylabel='error')])
@@ -66,15 +68,23 @@ def makeIntoVariables(episode):
         episode["state_current_real"],
         episode["actions"]
     ], axis=2)
+    _input = torch.from_numpy(_input)
+    _output = episode["state_next_real"]
+
+    if CUDA:
+        _input = _input.cuda()
+        _output = _output.cuda()
+
     x, y = Variable(
-        torch.from_numpy(_input).cuda(),
+        _input,
         requires_grad=False
     ), Variable(
-        episode["state_next_real"].cuda(),
+        _output,
         requires_grad=False
     )
 
     return x, y
+
 
 def printEpochLoss(epoch_idx, valid, loss_epoch, diff_epoch):
     print("epoch {}, "
@@ -104,7 +114,7 @@ def loadModel(optional=True):
     if model_exists:
         checkpoint = torch.load(MODEL_PATH_BEST)
         net.load_state_dict(checkpoint['state_dict'])
-        print ("MODEL LOADED, CONTINUING TRAINING")
+        print("MODEL LOADED, CONTINUING TRAINING")
         return "TRAINING AVG LOSS: {}\n" \
                "TRAINING AVG DIFF: {}".format(
             checkpoint["epoch_avg_loss"], checkpoint["epoch_avg_diff"])
@@ -147,14 +157,17 @@ for epoch in np.arange(EPOCHS):
         optimizer.zero_grad()
 
         correction = net.forward(x)
-        sim_prediction = Variable(data["state_next_sim"], requires_grad=False).cuda()
-        loss = loss_function(sim_prediction+correction, y).mean()
+        sim_prediction = Variable(data["state_next_sim"])
+        if CUDA:
+            sim_prediction = sim_prediction.cuda()
+
+        loss = loss_function(sim_prediction + correction, y).mean()
         loss.backward()
 
         optimizer.step()
 
         loss_episode = loss.clone().cpu().data.numpy()[0]
-        diff_episode = F.mse_loss(x[:,:,:6], y).clone().cpu().data.numpy()[0]
+        diff_episode = F.mse_loss(x[:, :, :6], y).clone().cpu().data.numpy()[0]
         # printEpisodeLoss(epoch, epi, loss_episode, diff_episode, 100)
         # viz.update(epoch*train_data.num_examples+epi, loss_episode, "loss")
         # viz.update(epoch*train_data.num_examples+epi, diff_episode, "diff")
@@ -171,8 +184,11 @@ for epoch in np.arange(EPOCHS):
         x, y = makeIntoVariables(data)
         net.zero_hidden()
         correction = net.forward(x)
-        sim_prediction = Variable(data["state_next_sim"], requires_grad=False).cuda()
-        loss = loss_function(sim_prediction+correction, y).mean()
+        sim_prediction = Variable(data["state_next_sim"])
+        if CUDA:
+            sim_prediction = sim_prediction.cuda()
+
+        loss = loss_function(sim_prediction + correction, y).mean()
         loss_valid.append(loss.clone().cpu().data.numpy()[0])
     loss_valid = np.mean(loss_valid)
     # viz.update(epoch*train_data.num_examples, loss_valid, "validation loss")
