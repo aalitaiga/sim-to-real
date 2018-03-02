@@ -41,4 +41,5 @@ class LstmSimpleNet2Pusher(nn.Module):
         out, self.hidden = self.lstm1(out.permute((1,0,2)), self.hidden)
         out = F.leaky_relu(out.permute((1,0,2)))
         out = self.linear2(out)
-        return (out * self.std) + self.mean
+        # return (out * self.std) + self.mean
+        return out

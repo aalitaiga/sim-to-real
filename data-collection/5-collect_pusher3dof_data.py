@@ -23,7 +23,7 @@ env.reset()
 env2.env._init( # real
     torques=[1, 1, 1],
     xml='3link_gripper_push_2d_backlash',
-    colored=False
+    colored=True
 )
 env.reset()
 
