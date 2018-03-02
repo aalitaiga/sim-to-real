@@ -39,7 +39,7 @@ MODEL_PATH_BEST = "./trained_models/lstm_pusher3dof_simple_{}ac_{}l_{}n_best.pt"
 )
 TRAIN = True
 CONTINUE = False
-CUDA = False
+CUDA = True
 
 print(MODEL_PATH_BEST)
 
@@ -86,14 +86,15 @@ def makeIntoVariables(episode):
     return x, y
 
 
-def printEpochLoss(epoch_idx, valid, loss_epoch, diff_epoch):
+def printEpochLoss(epoch_idx, loss_valid, loss_epoch, diff_epoch):
     print("epoch {}, "
-          "loss: {}, , "
-          "diff: {}, valid loss: {}".format(
+          "train loss: {}, "
+          "test loss: {}, "
+          "diff: {}, ".format(
         epoch_idx,
-        round(loss_epoch, 3),
-        round(diff_epoch, 3),
-        round(valid, 3)
+        loss_epoch,
+        loss_valid,
+        diff_epoch
     ))
 
 
@@ -102,8 +103,8 @@ def saveModel(state, epoch, loss_epoch, diff_epoch, is_best, episode_idx):
         "epoch": epoch,
         "episodes": episode_idx + 1,
         "state_dict": state,
-        "epoch_avg_loss": float(loss_epoch) / (episode_idx + 1),
-        "epoch_avg_diff": float(diff_epoch) / (episode_idx + 1)
+        "epoch_avg_loss": np.mean(loss_epoch),
+        "epoch_avg_diff": np.mean(diff_epoch)
     }, MODEL_PATH)
     if is_best:
         shutil.copyfile(MODEL_PATH, MODEL_PATH_BEST)
@@ -145,8 +146,8 @@ loss_min = [float('inf')]
 
 for epoch in np.arange(EPOCHS):
 
-    loss_epoch = 0
-    diff_epoch = 0
+    loss_epoch = []
+    diff_epoch = []
 
     for epi, data in enumerate(dataloader_train):
         x, y = makeIntoVariables(data)
@@ -161,7 +162,7 @@ for epoch in np.arange(EPOCHS):
         if CUDA:
             sim_prediction = sim_prediction.cuda()
 
-        loss = loss_function(sim_prediction + correction, y).mean()
+        loss = loss_function(sim_prediction + correction, y)
         loss.backward()
 
         optimizer.step()
@@ -172,15 +173,15 @@ for epoch in np.arange(EPOCHS):
         # viz.update(epoch*train_data.num_examples+epi, loss_episode, "loss")
         # viz.update(epoch*train_data.num_examples+epi, diff_episode, "diff")
 
-        loss_epoch += loss_episode
-        diff_epoch += diff_episode
+        loss_epoch.append(loss_episode)
+        diff_epoch.append(diff_episode)
         loss.detach_()
         net.hidden[0].detach_()
         net.hidden[1].detach_()
 
     # Validation step
     loss_valid = []
-    for _, data in enumerate(dataloader_test):
+    for j, data in enumerate(dataloader_test):
         x, y = makeIntoVariables(data)
         net.zero_hidden()
         correction = net.forward(x)
@@ -188,12 +189,16 @@ for epoch in np.arange(EPOCHS):
         if CUDA:
             sim_prediction = sim_prediction.cuda()
 
-        loss = loss_function(sim_prediction + correction, y).mean()
+        loss = loss_function(sim_prediction + correction, y)
+        # if j == 10:
+        #     print (sim_prediction)
+        #     print (correction)
+        #     print (y)
+
         loss_valid.append(loss.clone().cpu().data.numpy()[0])
-    loss_valid = np.mean(loss_valid)
     # viz.update(epoch*train_data.num_examples, loss_valid, "validation loss")
 
-    printEpochLoss(epoch, loss_valid, loss_epoch, diff_epoch)
+    printEpochLoss(epoch, np.mean(loss_valid), np.mean(loss_epoch), np.mean(diff_epoch))
 
     if TRAIN:
         saveModel(

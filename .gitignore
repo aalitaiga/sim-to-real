@@ -109,6 +109,9 @@ data/ergo-rec*
 .idea
 
 trained_models/*.pt
+!trained_models/lstm_pusher3dof_simple_5ac_3l_128n.pt
+!trained_models/lstm_pusher3dof_simple_5ac_3l_128n_best.pt
+
 rl-logs/
 *.old/
 rl-logs.old2/
@@ -116,3 +119,5 @@ rl-logs.old3-prenips/
 rl-logs.current/
 
 core
+*.directory
+*.meta.json
