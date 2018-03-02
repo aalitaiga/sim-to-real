@@ -23,9 +23,9 @@ except:
     hyperdash_support = False
 
 HIDDEN_NODES = 128
-LSTM_LAYERS = 5
-EXPERIMENT = 3
-EPOCHS = 200
+LSTM_LAYERS = 3
+EXPERIMENT = 1
+EPOCHS = 10
 DATASET_PATH = "/windata/sim2real-full/done/"
 MODEL_PATH = "./trained_models/simple_lstm_real_norm{}_v1_{}l_{}.pt".format(
     EXPERIMENT,
@@ -41,6 +41,7 @@ TRAIN = True
 CONTINUE = False
 CUDA = True
 BATCH_SIZE = 1
+VIZ = False
 
 dataset_train = DatasetRealPosVel(DATASET_PATH, for_training=True, with_velocities=True, normalized=True)
 dataset_test = DatasetRealPosVel(DATASET_PATH, for_training=False, with_velocities=True, normalized=True)
@@ -54,25 +55,28 @@ net = LstmSimpleNet2Real(n_input_state_sim=12, n_input_state_real=12, n_input_ac
 if CUDA:
     net.cuda()
 
-viz = VisdomExt([["loss", "validation loss"],["diff"]],[dict(title='LSTM loss', xlabel='iteration', ylabel='loss'),
-dict(title='Diff loss', xlabel='iteration', ylabel='error')])
+if VIZ:
+    viz = VisdomExt([["loss", "validation loss"], ["diff"]],
+                    [dict(title='LSTM loss', xlabel='iteration', ylabel='loss'),
+                     dict(title='Diff loss', xlabel='iteration', ylabel='error')])
 
 
 def makeIntoVariables(dataslice):
     x, y = (autograd.Variable(
-        dataslice["state_next_sim_joints"][:,:,:].cuda(),
+        dataslice["state_next_sim_joints"][:, :, :].cuda(),
         requires_grad=False
-    ),autograd.Variable(
-        dataslice["state_current_real_joints"][:,:,:].cuda(),
+    ), autograd.Variable(
+        dataslice["state_current_real_joints"][:, :, :].cuda(),
         requires_grad=False
-    ),autograd.Variable(
-        dataslice["action"][:,:,:].cuda(),
+    ), autograd.Variable(
+        dataslice["action"][:, :, :].cuda(),
         requires_grad=False
     )), autograd.Variable(
-        dataslice["state_next_real_joints"][:,:,:].cuda(),
+        dataslice["state_next_real_joints"][:, :, :].cuda(),
         requires_grad=False
     )
     return x, y
+
 
 def printEpisodeLoss(epoch_idx, episode_idx, loss_episode, diff_episode, len_episode):
     loss_avg = round(float(loss_episode) / len_episode, 2)
@@ -128,7 +132,7 @@ def loadModel(optional=True):
     if model_exists:
         checkpoint = torch.load(MODEL_PATH_BEST)
         net.load_state_dict(checkpoint['state_dict'])
-        print ("MODEL LOADED, CONTINUING TRAINING")
+        print("MODEL LOADED, CONTINUING TRAINING")
         return "TRAINING AVG LOSS: {}\n" \
                "TRAINING AVG DIFF: {}".format(
             checkpoint["epoch_avg_loss"], checkpoint["epoch_avg_diff"])
@@ -154,7 +158,7 @@ if TRAIN:
 else:
     old_model_string = loadModel(optional=False)
 
-loss_history = [999999999]  # very high loss because loss can't be empty for min()
+loss_history = [np.inf]  # very high loss because loss can't be empty for min()
 
 for epoch in np.arange(EPOCHS):
 
@@ -170,7 +174,7 @@ for epoch in np.arange(EPOCHS):
         optimizer.zero_grad()
 
         correction = net.forward(x)
-        loss = loss_function(x[0]+correction, y).mean()
+        loss = loss_function(x[0] + correction, y).mean()
         loss.backward()
 
         optimizer.step()
@@ -178,8 +182,9 @@ for epoch in np.arange(EPOCHS):
         loss_episode = loss.clone().cpu().data.numpy()[0]
         diff_episode = F.mse_loss(x[0], y).clone().cpu().data.numpy()[0]
         # printEpisodeLoss(epoch, epi, loss_episode, diff_episode, 100)
-        viz.update(epoch*1290+epi, loss_episode, "loss")
-        viz.update(epoch*1290+epi, diff_episode, "diff")
+        if VIZ:
+            viz.update(epoch * 1290 + epi, loss_episode, "loss")
+            viz.update(epoch * 1290 + epi, diff_episode, "diff")
         if hyperdash_support:
             exp.metric("loss train", loss_episode)
             exp.metric("diff train", diff_episode)
@@ -214,10 +219,11 @@ for epoch in np.arange(EPOCHS):
         x, y = makeIntoVariables(data)
         net.zero_hidden()
         correction = net.forward(x)
-        loss = loss_function(x[0]+correction, y).mean()
+        loss = loss_function(x[0] + correction, y).mean()
         loss_total.append(loss.clone().cpu().data.numpy()[0])
         diff_total.append(F.mse_loss(x[0], y).clone().cpu().data.numpy()[0])
-    viz.update(epoch*1290, np.mean(loss_total), "validation loss")
+    if VIZ:
+        viz.update(epoch * 1290, np.mean(loss_total), "validation loss")
     if hyperdash_support:
         exp.metric("loss test mean", np.mean(loss_total))
         exp.metric("diff test mean", np.mean(diff_total))
