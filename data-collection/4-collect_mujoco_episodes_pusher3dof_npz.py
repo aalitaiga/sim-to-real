@@ -12,7 +12,7 @@ from tqdm import tqdm
 max_steps = 1000
 episode_length = 100  # how many steps max in each rollout?
 # split = 0.90 # train/test split is done in the dataloader by reserving the first 100 elements for validation
-action_steps = 5
+action_steps = 1
 OUTPUT_FILE = "/tmp/mujoco_pusher3dof_simple_{}act.npz".format(action_steps)
 
 env_sim = gym.make('Pusher3Dof2-v0')  # sim
