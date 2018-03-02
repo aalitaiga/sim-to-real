@@ -39,7 +39,7 @@ MODEL_PATH_BEST = "./trained_models/lstm_pusher3dof_simple_{}ac_{}l_{}n_best.pt"
 )
 TRAIN = True
 CONTINUE = False
-CUDA = False
+CUDA = True
 
 print(MODEL_PATH_BEST)
 
