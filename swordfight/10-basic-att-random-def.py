@@ -8,26 +8,9 @@ from poppy_helpers.randomizer import Randomizer
 
 import numpy as np
 
-print ("=== connecting to poppies")
-poppy_def = from_remote('flogo4.local', 4242)
-poppy_att = from_remote('flogo2.local', 4242)
-print ("=== connection established")
+from poppy_helpers.startups import startup_swordfight
 
-controller_def = SwordFightController(poppy_def, mode="def")
-controller_att = SwordFightController(poppy_att, mode="att")
-
-controller_att.compliant(False)
-controller_def.compliant(False)
-
-controller_att.set_max_speed(50)
-controller_def.set_max_speed(150)
-
-controller_def.rest()
-controller_att.rest()
-
-print ("=== resetting robots")
-
-time.sleep(2)
+controller_att, controller_def = startup_swordfight("flogo2","flogo4")
 
 # random defense
 rand = Randomizer()
