@@ -44,7 +44,7 @@ inf = Inference("/home/florian/dev/pytorch-a2c-ppo-acktr/"
 # ErgoFightStatic-Headless-Fencing-v0-180301140937.pt - pretty good, slightly stabby
 # ErgoFightStatic-Headless-Fencing-v0-180301140520.pt - ultimate stabby policy
 
-# ErgoFightStatic-Headless-Fencing-v0-180209225957.pt - aggressive lunge policy, good tracking
+# ErgoFightStatic-Headless-Fencing-v0-180209225957.pt - aggressive lunge policy, good tracking, best policy
 
 
 def get_observation():
