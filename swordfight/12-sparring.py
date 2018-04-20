@@ -19,7 +19,7 @@ from poppy_helpers.sound import RemoteSound
 SCALING = 5  # action scaling, how many hundred
 MAX_FRAMES = 150
 RANDOM_NOISE_SCALING = 0.5
-
+ACTION_SCALING = 0.5
 
 controller_att, controller_def = startup_swordfight("flogo2", "flogo4")
 
@@ -105,7 +105,7 @@ def control():
         print ("Frame:",frames)
         action = np.clip(action, -1, 1)
         action = norm.denormalize_pos(action)
-        controller_att.act(action, scaling=0.2)
+        controller_att.act(action, scaling=ACTION_SCALING)
 
         if frames < MAX_FRAMES and q.empty():
             continue
