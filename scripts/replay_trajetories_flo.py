@@ -5,7 +5,7 @@ import numpy as np
 
 from torch.utils.data import DataLoader
 
-from simple_joints_lstm.lstm_simple_net2_pusher import LstmSimpleNet2Pusher
+from simple_joints_lstm.pusher_lstm import LstmSimpleNet2Pusher
 from simple_joints_lstm.mujoco_traintest_dataset_pusher_simple import MujocoTraintestPusherSimpleDataset
 
 BATCH_SIZE = 1

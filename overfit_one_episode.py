@@ -1,12 +1,10 @@
 import shutil
-import sys
 
 import numpy as np
 from torch import nn, optim, torch
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import MultiStepLR
 from fuel.streams import DataStream
 from fuel.schemes import ShuffledScheme, SequentialScheme
 from fuel.datasets.hdf5 import H5PYDataset
@@ -17,25 +15,27 @@ from simple_joints_lstm.pusher_lstm import LstmSimpleNet2Pusher
 from utils.plot import VisdomExt
 import os
 
+try:
+    from hyperdash import Experiment
 
-max_steps = int(sys.argv[1]) or 10000
-print("Training lstm with: {} datapoints".format(max_steps))
+    hyperdash_support = True
+except:
+    hyperdash_support = False
+
 HIDDEN_NODES = 128
 LSTM_LAYERS = 3
 EXPERIMENT = 1
-EPOCHS = 250
+EPOCHS = 350
 DATASET_PATH_REL = "/data/lisa/data/sim2real/"
 # DATASET_PATH_REL = "/lindata/sim2real/"
-DATASET_PATH = DATASET_PATH_REL + "mujoco_pusher3dof_{}.h5".format(max_steps)
-MODEL_PATH = "./trained_models/lstm_pusher_{}l_{}_{}.pt".format(
+DATASET_PATH = DATASET_PATH_REL + "mujoco_data_pusher3dof_big_backl.h5"
+MODEL_PATH = "./trained_models/lstm_pusher_{}l_{}_overfit.pt".format(
     LSTM_LAYERS,
-    HIDDEN_NODES,
-    max_steps
+    HIDDEN_NODES
 )
-MODEL_PATH_BEST = "./trained_models/lstm_pusher_{}l_{}_{}_best.pt".format(
+MODEL_PATH_BEST = "./trained_models/lstm_pusher_{}l_{}_best.pt".format(
     LSTM_LAYERS,
-    HIDDEN_NODES,
-    max_steps
+    HIDDEN_NODES
 )
 TRAIN = True
 CONTINUE = False
@@ -50,7 +50,8 @@ valid_data = H5PYDataset(
     DATASET_PATH, which_sets=('valid',), sources=('s_transition_obs','r_transition_obs', 'obs', 'actions')
 )
 stream_valid = DataStream(valid_data, iteration_scheme=ShuffledScheme(valid_data.num_examples, batch_size))
-net = LstmSimpleNet2Pusher(27, 6, use_cuda=CUDA, normalized=False)
+
+net = LstmSimpleNet2Pusher(27, 6)
 print(net)
 
 if CUDA:
@@ -60,24 +61,23 @@ viz = VisdomExt([["loss", "validation loss"],["diff"]],[dict(title='LSTM loss', 
 dict(title='Diff loss', xlabel='iteration', ylabel='error')])
 
 means = {
-    'o': np.array([-0.4417094, 1.50765455, -0.02639891, -0.05560728, 0.39159551, 0.03819341, 0.76052153, 0.23057458, 0.63315856, -0.6400153, 1.01691067, -1.02684915], dtype='float32'),
-    's': np.array([-0.44221497, 1.52240622, -0.02244471, 0.01573334, 0.23615479, 0.10089023, 0.7594685, 0.23817146, 0.63317519, -0.64011943, 1.01691067, -1.02684915], dtype='float32'),
-    'c': np.array([-2.23746197e-03, 4.93022148e-03, -2.03814497e-03, -6.97841570e-02, 1.53955221e-01, -6.21460043e-02], dtype='float32')
+    'o': np.array([2.2281456, 1.93128324, 1.63007331, 0.48472479, 0.4500702, 0.30325469, -0.38825685, -0.63075501, 0.63863981, -0.63173348, 1.01628101, -1.02707994], dtype='float32'),
+    's': np.array([2.25090551, 1.94997263, 1.6495719, 0.43379614, 0.3314755, 0.43763939, -0.38825685, -0.63075501, 0.63863981, -0.63173348, 1.01628101, -1.02707994], dtype='float32'),
+    'c': np.array([0.00173789, 0.00352129, -0.00427585, 0.05105286, 0.11881274, -0.13443381], dtype='float32')
     # 'r': np.array([2.25277853,  1.95338345, 1.64534044, 0.48487723, 0.45031613, 0.30320421], dtype='float32')
 }
 
 std = {
-    'o': np.array([0.38327965, 0.78956741, 0.48310387, 0.33454728, 0.53120506, 0.51319438, 0.20692779, 0.36664706, 0.25205335, 0.15865214, 0.11554158, 0.1132608], dtype='float32'),
-    's': np.array([0.38500383, 0.78036022, 0.48781601, 0.35502997, 0.60374367, 0.56180185, 0.21046612, 0.36828887, 0.25209084, 0.15857539, 0.11554158, 0.1132608], dtype='float32'),
-    'c': np.array([7.19802594e-03, 1.59114692e-02, 7.24539673e-03, 2.23035514e-01, 4.93483037e-01, 2.18238667e-01,], dtype='float32'),
-    'a': np.array([0.57690412, 0.57732242, 0.57705152], dtype='float32')
+    'o': np.array([0.56555426, 0.5502255 , 0.59792095, 1.30218685, 1.36075258, 2.37941241, 0.37797412, 0.50458646, 0.24756368, 0.1611862, 0.11527784, 0.11197065], dtype='float32'),
+    's': np.array([0.5295766, 0.51998389, 0.57609886, 1.35480666, 1.40806067, 2.43865967, 0.36436939, 0.50140637, 0.24752532, 0.16115381, 0.11527784, 0.11197065], dtype='float32'),
+    'c': np. array([0.01608515, 0.0170644, 0.01075647, 0.46635619, 0.53578401, 0.32062387], dtype='float32')
     # 'r':  np.array([0.52004296, 0.51547343, 0.57784373, 1.30222356, 1.36113203, 2.38046765], dtype='float32')
 }
 
 def makeIntoVariables(dat):
     input_ = np.concatenate([
         (dat["obs"] - means['o']) / std['o'],
-        (dat["actions"] / std['a']),
+        dat["actions"],
         (dat["s_transition_obs"] - means['s']) / std['s']
     ], axis=2)
     x, y = Variable(
@@ -94,22 +94,23 @@ def printEpochLoss(epoch_idx, valid, loss_epoch, diff_epoch):
           "loss: {}, , "
           "diff: {}, valid loss: {}".format(
         epoch_idx,
-        round(loss_epoch, 10),
-        round(diff_epoch, 10),
-        round(valid, 10)
+        round(loss_epoch, 4),
+        round(diff_epoch, 4),
+        round(valid, 4)
     ))
 
 
-def saveModel(state, epoch, loss_epoch, valid_epoch, is_best, episode_idx):
+def saveModel(state, epoch, loss_epoch, diff_epoch, is_best, episode_idx):
     torch.save({
         "epoch": epoch,
         "episodes": episode_idx + 1,
         "state_dict": state,
-        "epoch_avg_loss": round(loss_epoch, 10),
-        "epoch_avg_valid": round(valid_epoch, 10)
+        "epoch_avg_loss": float(loss_epoch) / (episode_idx + 1),
+        "epoch_avg_diff": float(diff_epoch) / (episode_idx + 1)
     }, MODEL_PATH)
     if is_best:
         shutil.copyfile(MODEL_PATH, MODEL_PATH_BEST)
+
 
 def loadModel(optional=True):
     model_exists = os.path.isfile(MODEL_PATH_BEST)
@@ -129,10 +130,13 @@ def loadModel(optional=True):
 
 
 loss_function = nn.MSELoss()
+if hyperdash_support:
+    exp = Experiment("simple lstm - pusher")
+    exp.param("layers", LSTM_LAYERS)
+    exp.param("nodes", HIDDEN_NODES)
 
 if TRAIN:
-    optimizer = optim.Adam(net.parameters(), lr=0.001)
-    scheduler = MultiStepLR(optimizer, milestones=[100,175,200], gamma=0.5)
+    optimizer = optim.Adam(net.parameters(), lr=0.0001)
     if CONTINUE:
         old_model_string = loadModel(optional=True)
         print(old_model_string)
@@ -140,15 +144,15 @@ else:
     old_model_string = loadModel(optional=False)
 
 loss_min = [float('inf')]
-mean_c = Variable(torch.from_numpy(means["c"]), requires_grad=False).cuda()
-std_c = Variable(torch.from_numpy(std["c"]), requires_grad=False).cuda()
-
+iterator = stream_train.get_epoch_iterator(as_dict=True)
+data = next(iterator)
+import ipdb; ipdb.set_trace()
 for epoch in np.arange(EPOCHS):
     loss_epoch = []
     diff_epoch = []
     iterator = stream_train.get_epoch_iterator(as_dict=True)
 
-    for epi, data in enumerate(iterator):
+    for epi, _ in enumerate(iterator):
         x, y = makeIntoVariables(data)
 
         # reset hidden lstm units
@@ -158,7 +162,7 @@ for epoch in np.arange(EPOCHS):
 
         correction = net.forward(x)
         sim_prediction = Variable(torch.from_numpy(data["s_transition_obs"][:,:,:6]), requires_grad=False).cuda()
-        loss = loss_function(correction, (y-sim_prediction - mean_c) / std_c).mean()
+        loss = loss_function(sim_prediction+correction, y).mean()
         loss.backward()
 
         optimizer.step()
@@ -174,34 +178,39 @@ for epoch in np.arange(EPOCHS):
 
     viz.update(epoch, np.mean(loss_epoch), "loss")
     viz.update(epoch, np.mean(diff_episode), "diff")
-    scheduler.step()
 
 
     # Validation step
-    loss_valid = []
-    iterator = stream_valid.get_epoch_iterator(as_dict=True)
-    for _, data in enumerate(iterator):
-        x, y = makeIntoVariables(data)
-        net.zero_hidden()
-        correction = net.forward(x)
-        sim_prediction = Variable(torch.from_numpy(data["s_transition_obs"][:,:,:6]), requires_grad=False).cuda()
-        loss = loss_function(correction, (y - sim_prediction - mean_c) / std_c).mean()
-        loss_valid.append(loss.clone().cpu().data.numpy()[0])
-    loss_val = np.mean(loss_valid)
-    viz.update(epoch, loss_val, "validation loss")
+    # loss_valid = []
+    # iterator = stream_valid.get_epoch_iterator(as_dict=True)
+    # for _, data in enumerate(iterator):
+    #     x, y = makeIntoVariables(data)
+    #     net.zero_hidden()
+    #     correction = net.forward(x)
+    #     sim_prediction = Variable(torch.from_numpy(data["s_transition_obs"][:,:,:6]), requires_grad=False).cuda()
+    #     loss = loss_function(sim_prediction+correction, y).mean()
+    #     loss_valid.append(loss.clone().cpu().data.numpy()[0])
+    # loss_valid = np.mean(loss_valid)
+    # viz.update(epoch*train_data.num_examples, loss_valid, "validation loss")
+    #
+    # printEpochLoss(epoch, loss_valid, loss_epoch, diff_epoch)
+    printEpochLoss(epoch, 0, loss_epoch, diff_epoch)
+    #
+    # if TRAIN:
+    saveModel(
+        state=net.state_dict(),
+        epoch=epoch,
+        episode_idx=epi,
+        loss_epoch=loss_epoch,
+        diff_epoch=diff_epoch,
+        is_best=False
+        # is_best=(loss_valid < loss_min)
+    )
+    #     loss_min = min(loss_valid, loss_min)
+    # else:
+    #     print(old_model_string)
+    #     break
 
-    printEpochLoss(epoch, loss_val, np.mean(loss_epoch), np.mean(diff_episode))
-
-    if TRAIN:
-        saveModel(
-            state=net.state_dict(),
-            epoch=epoch,
-            episode_idx=epi,
-            loss_epoch=np.mean(loss_epoch),
-            valid_epoch=loss_val,
-            is_best=(loss_val < loss_min)
-        )
-        loss_min = min(loss_val, loss_min)
-    else:
-        print(old_model_string)
-        break
+# Cleanup and mark that the experiment successfully completed
+if hyperdash_support:
+    exp.end()

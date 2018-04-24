@@ -1,39 +1,32 @@
 import math
+import sys
 
 import h5py
 from fuel.datasets.hdf5 import H5PYDataset
 import gym
-import gym_reacher2
+import gym_throwandpush
 import numpy as np
 from tqdm import tqdm
 # from hyperdash import Experiment
 
-env_sim = gym.make('Reacher2-v0')  # sim
-env_real = gym.make('Reacher2-v0')  # real
+max_steps = int(sys.argv[1]) or 2000
 
-env_sim.env._init(  # sim
-    # colored=True
-)
+env_sim = gym.make('Striker-v1')  # sim
+env_real = gym.make('Striker-v2')  # real
+
 env_sim.reset()
-
-env_real.env._init(
-    xml="reacher-backlash.xml",
-    # colored=False
-)
 env_real.reset()
+
 observation_dim = int(env_sim.observation_space.shape[0])
 action_dim = int(env_sim.action_space.shape[0])
 rng = np.random.RandomState(seed=22)
-max_steps = 2000
-episode_length = 50  # how many steps max in each rollout?
-split = 0.90
+episode_length = 100  # how many steps max in each rollout?
 action_steps = 1
 
 # Creating the h5 dataset
-name = '/Tmp/alitaiga/mujoco_reacher_test.h5'
-assert 0 < split <= 1
-size_train = math.floor(max_steps * split)
-size_val = math.ceil(max_steps * (1 - split))
+name = '/Tmp/alitaiga/mujoco_striker_{}.h5'.format(max_steps)
+size_train = max_steps
+size_val = math.ceil(max_steps * 0.1)
 f = h5py.File(name, mode='w')
 observations = f.create_dataset('obs', (size_train+size_val, episode_length, observation_dim), dtype='float32')
 actions = f.create_dataset('actions', (size_train+size_val, episode_length, action_dim), dtype='float32')
@@ -64,15 +57,15 @@ f.attrs['split'] = H5PYDataset.create_split_array(split_dict)
 
 def match_env(ev1, ev2):
     # set env1 (simulator) to that of env_real (real robot)
-    ev1.unwrapped.set_state(
-        ev2.unwrapped.model.data.qpos.ravel(),
-        ev2.unwrapped.model.data.qvel.ravel()
+    ev1.env.set_state(
+        ev2.env.model.data.qpos.ravel(),
+        ev2.env.model.data.qvel.ravel()
     )
 
 i = 0
 # exp = Experiment("dataset pusher")
 
-for i in tqdm(range(max_steps)):
+for i in tqdm(range(size_train+size_val)):
     # exp.metric("episode", i)
     obs = env_sim.reset()
     obs2 = env_real.reset()
