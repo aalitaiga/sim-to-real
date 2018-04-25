@@ -6,7 +6,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
-from simple_joints_lstm.lstm_simple_net2_pusher import LstmSimpleNet2Pusher
+from simple_joints_lstm.pusher_lstm import LstmSimpleNet2Pusher
 from simple_joints_lstm.mujoco_traintest_dataset_pusher_simple import MujocoTraintestPusherSimpleDataset
 from utils.plot import VisdomExt
 import os

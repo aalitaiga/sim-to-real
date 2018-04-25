@@ -9,7 +9,7 @@ from fuel.schemes import ShuffledScheme
 from fuel.datasets.hdf5 import H5PYDataset
 
 # absolute imports here, so that you can run the file directly
-from simple_joints_lstm.lstm_simple_net2_pusher import LstmSimpleNet2Pusher
+from simple_joints_lstm.pusher_lstm import LstmSimpleNet2Pusher
 from utils.plot import VisdomExt
 import os
 

@@ -4,9 +4,9 @@ from fuel.datasets.hdf5 import H5PYDataset
 
 import numpy as np
 
-# DATASET_PATH_REL = "/data/lisa/data/sim2real/"
-# DATASET_PATH = DATASET_PATH_REL + "mujoco_data_pusher3dof_5ac_backl.h5"
-DATASET_PATH = "/Tmp/alitaiga/mujoco_data_pusher3dof_big_backl.h5"
+DATASET_PATH_REL = "/data/lisa/data/sim2real/"
+DATASET_PATH = DATASET_PATH_REL + "mujoco_data_pusher3dof_big_backl.h5"
+# DATASET_PATH = "/Tmp/alitaiga/mujoco_data_pusher3dof_big_backl.h5"
 batch_size = 1
 train_data = H5PYDataset(
     DATASET_PATH, which_sets=('train',), sources=('s_transition_obs','r_transition_obs', 'obs', 'actions')

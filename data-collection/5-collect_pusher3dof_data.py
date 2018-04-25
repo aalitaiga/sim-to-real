@@ -1,52 +1,46 @@
 import math
+import sys
 
 import h5py
 from fuel.datasets.hdf5 import H5PYDataset
 import gym
 import gym_throwandpush
 import numpy as np
-from scipy.misc import imresize
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 # from hyperdash import Experiment
 
-env = gym.make('Pusher3Dof2-v0') # sim
-env2 = gym.make('Pusher3Dof2-v0') # real
+max_steps = int(sys.argv[1]) or 2000
 
-env.env._init( # sim
+env_sim = gym.make('Pusher3Dof2-v0')  # sim
+env_real = gym.make('Pusher3Dof2-v0')  # real
+
+env_sim.env._init(  # sim
     # torques=[.85, .85, .85],
     torques=[1, 1, 1],
     colored=True
 )
-env.reset()
+env_sim.reset()
 
-env2.env._init( # real
+env_real.env._init(  # real
     torques=[1, 1, 1],
     xml='3link_gripper_push_2d_backlash',
     colored=False
 )
-env.reset()
+env_real.reset()
 
-image_dim = (128, 128, 3)
-observation_dim = int(env.observation_space.shape[0])
-action_dim = int(env.action_space.shape[0])
+observation_dim = int(env_sim.observation_space.shape[0])
+action_dim = int(env_sim.action_space.shape[0])
 rng = np.random.RandomState(seed=22)
-max_steps = 10000
-episode_length = 100 # how many steps max in each rollout?
-split = 0.90
+episode_length = 100  # how many steps max in each rollout?
 action_steps = 1
 
 # Creating the h5 dataset
-name = '/Tmp/alitaiga/mujoco_data_pusher3dof_big_backl.h5'
-assert 0 < split <= 1
-size_train = math.floor(max_steps * split)
-size_val = math.ceil(max_steps * (1 - split))
+name = '/Tmp/alitaiga/mujoco_pusher3dof_{}.h5'.format(max_steps)
+size_train = max_steps
+size_val = math.ceil(max_steps * 0.1)
 f = h5py.File(name, mode='w')
-# images = f.create_dataset('images', (size_train+size_val, episode_length) + image_dim, dtype='uint8')
 observations = f.create_dataset('obs', (size_train+size_val, episode_length, observation_dim), dtype='float32')
 actions = f.create_dataset('actions', (size_train+size_val, episode_length, action_dim), dtype='float32')
-# s_transition_img = f.create_dataset('s_transition_img', (size_train+size_val, episode_length) + image_dim, dtype='uint8')
-# r_transition_img = f.create_dataset('r_transition_img', (size_train+size_val, episode_length) + image_dim, dtype='uint8')
 s_transition_obs = f.create_dataset('s_transition_obs', (size_train+size_val, episode_length, observation_dim), dtype='float32')
 r_transition_obs = f.create_dataset('r_transition_obs', (size_train+size_val, episode_length, observation_dim), dtype='float32')
 reward_sim = f.create_dataset('reward_sim', (size_train+size_val,episode_length), dtype='float32')
@@ -54,22 +48,16 @@ reward_real = f.create_dataset('reward_real', (size_train+size_val,episode_lengt
 
 split_dict = {
     'train': {
-        # 'images': (0, size_train),
         'obs': (0, size_train),
         'actions': (0, size_train),
-        # 's_transition_img': (0, size_train),
-        # 'r_transition_img': (0, size_train),
         's_transition_obs': (0, size_train),
         'r_transition_obs': (0, size_train),
         'reward_sim': (0, size_train),
         'reward_real': (0, size_train)
     },
     'valid': {
-        # 'images': (size_train, size_train+size_val),
         'obs': (size_train, size_train+size_val),
         'actions': (size_train, size_train+size_val),
-        # 's_transition_img': (size_train, size_train+size_val),
-        # 'r_transition_img': (size_train, size_train+size_val),
         's_transition_obs': (size_train, size_train+size_val),
         'r_transition_obs': (size_train, size_train+size_val),
         'reward_sim': (size_train, size_train+size_val),
@@ -79,7 +67,7 @@ split_dict = {
 f.attrs['split'] = H5PYDataset.create_split_array(split_dict)
 
 def match_env(ev1, ev2):
-    # set env1 (simulator) to that of env2 (real robot)
+    # set env1 (simulator) to that of env_real (real robot)
     ev1.env.set_state(
         ev2.env.model.data.qpos.ravel(),
         ev2.env.model.data.qvel.ravel()
@@ -88,20 +76,20 @@ def match_env(ev1, ev2):
 i = 0
 # exp = Experiment("dataset pusher")
 
-for i in tqdm(range(max_steps)):
+for i in tqdm(range(size_train+size_val)):
     # exp.metric("episode", i)
-    obs = env.reset()
-    obs2 = env2.reset()
-    match_env(env, env2)
+    obs = env_sim.reset()
+    obs2 = env_real.reset()
+    match_env(env_sim, env_real)
 
     for j in range(episode_length):
         # env.render()
-        # env2.render()
+        # env_real.render()
 
         # if j % action_steps == 0:
-        action = env.action_space.sample()
-        new_obs, reward, done, info = env.step(action.copy())
-        new_obs2, reward2, done2, info2 = env2.step(action.copy())
+        action = env_sim.action_space.sample()
+        new_obs, reward, done, info = env_sim.step(action.copy())
+        new_obs2, reward2, done2, info2 = env_real.step(action.copy())
 
         observations[i, j, :] = obs2.astype('float32')
         actions[i, j, :] = action.astype('float32')
@@ -114,7 +102,7 @@ for i in tqdm(range(max_steps)):
         # Otherwise the old state is constant
         obs2 = new_obs2
 
-        match_env(env, env2)
+        match_env(env_sim, env_real)
         if done2:
             break
 

@@ -3,51 +3,34 @@ import gym_throwandpush
 from gym.monitoring import VideoRecorder
 import numpy as np
 
-from torch.utils.data import DataLoader
+from simple_joints_lstm.striker_lstm import LstmStriker
 
-from simple_joints_lstm.pusher_lstm import LstmSimpleNet2Pusher
-from simple_joints_lstm.mujoco_traintest_dataset_pusher_simple import MujocoTraintestPusherSimpleDataset
+model = "/u/alitaiga/repositories/sim-to-real/trained_models/lstm_striker_3l_128_best_059.pt"
 
-# BATCH_SIZE = 1
-ACTION_STEPS = 5
-MODEL_PREFIX = "/u/alitaiga/repositories/sim-to-real/trained_models/"
-MODEL = MODEL_PREFIX + "lstm_pusher3dof_simple_{}ac_3l_128n.pt".format(ACTION_STEPS)
-# DATASET_PATH = "../data-collection/mujoco_pusher3dof_simple_{}act.npz".format(ACTION_STEPS)
+env_sim = gym.make('Striker-v1')  # sim
+env_simplus = gym.make('StrikerPlus-v0')  # sim
+env_real = gym.make('Striker-v2')  # real
 
-env_sim = gym.make('Pusher3Dof2-v0')  # sim
-env_simplus = gym.make('Pusher3Dof2Plus2-v0')  # sim
-env_real = gym.make('Pusher3Dof2-v0')  # real
-
-env_sim.env._init(  # sim
-    torques=[1, 1, 1],
-    colored=True
-)
 env_sim.reset()
 
-env_simplus.load_model(LstmSimpleNet2Pusher(15, 6, use_cuda=False, normalized=False), MODEL)
-env_simplus.env.env._init(  # sim
-    torques=[1, 1, 1],
-    colored=True
+env_simplus.load_model(
+    LstmStriker(53,14, use_cuda=False, hidden_nodes=128, lstm_layers=3, wdrop=0),
+    model
 )
 env_simplus.reset()
 
-env_real.env._init(  # real
-    torques=[1, 1, 1],
-    xml='3link_gripper_push_2d_backlash',
-    colored=False
-)
 env_real.reset()
 
 
 def match_env(real, sim):
     # set env1 (simulator) to that of env2 (real robot)
-    simulator = sim.env
-    if hasattr(simulator, "env"):
-        simulator = simulator.env
+    # simulator = sim.env
+    # if hasattr(simulator, "env"):
+    #     simulator = simulator.env
 
-    simulator.set_state(
-        real.env.model.data.qpos.ravel(),
-        real.env.model.data.qvel.ravel()
+    simulator.unwrapped.set_state(
+        real.unwrapped.model.data.qpos.ravel(),
+        real.unwrapped.model.data.qvel.ravel()
     )
 
 
@@ -66,8 +49,8 @@ video_recorder_sim = VideoRecorder(
 video_recorders = [video_recorder_real, video_recorder_simplus, video_recorder_sim]
 
 # for i, data in enumerate(dataloader_train):
-for i in range(40):
-    for j in range(50):
+for i in range(30):
+    for j in range(100):
         env_real.render()
         env_simplus.render()
         env_sim.render()
