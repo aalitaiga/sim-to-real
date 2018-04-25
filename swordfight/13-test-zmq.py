@@ -1,6 +1,5 @@
 import time
 
-import pypot
 import zmq
 
 ROBOT1 = "flogo4.local"
