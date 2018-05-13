@@ -10,8 +10,8 @@ BATCH_SIZE = 1
 dataset_train = DatasetRealPosVel(DATASET_PATH, for_training=True, with_velocities=True, normalized=True)
 dataset_test = DatasetRealPosVel(DATASET_PATH, for_training=False, with_velocities=True, normalized=True)
 
-dataloader_train = DataLoader(dataset_train, batch_size=BATCH_SIZE, shuffle=True, num_workers=1)
-dataloader_test = DataLoader(dataset_test, batch_size=BATCH_SIZE, shuffle=True, num_workers=1)
+dataloader_train = DataLoader(dataset_train, batch_size=BATCH_SIZE, shuffle=True, num_workers=0)
+dataloader_test = DataLoader(dataset_test, batch_size=BATCH_SIZE, shuffle=True, num_workers=0)
 
 
 def makeIntoVariables(dataslice):
@@ -32,9 +32,9 @@ for run in ["train","test"]:
     dataset_in = []
     dataset_diff = []
     dataset_out = []
+    dataset_epi = []
 
     for epi, data in enumerate(tqdm(dataloader)):
-        # makeIntoVariables(data)
         for i in range(data["state_next_sim_joints"].shape[1]):
             dataset_in.append(
                 np.hstack((data["state_next_sim_joints"][0, i, :].numpy(),
@@ -47,15 +47,24 @@ for run in ["train","test"]:
             dataset_diff.append(
                 (data["state_next_real_joints"][0, i, :] - data["state_next_sim_joints"][0, i, :]).numpy()
             )
+            dataset_epi.append(epi) # this is to keep track of where experiments begin/end
 
     dataset_in = np.array(dataset_in)
     dataset_diff = np.array(dataset_diff)
     dataset_out = np.array(dataset_out)
+    dataset_epi = np.array(dataset_epi)
 
     print (dataset_in.shape)
     print (dataset_diff.shape)
     print (dataset_out.shape)
+    print (dataset_epi.shape)
 
 
-    np.savez("dataset-real-{}-normalized.npz".format(run), ds_in=dataset_in, ds_out=dataset_out, ds_diff=dataset_diff)
+    np.savez(
+        "dataset-real-{}-normalized.npz".format(run),
+             ds_in=dataset_in,
+             ds_out=dataset_out,
+             ds_diff=dataset_diff,
+             ds_epi=dataset_epi
+             )
 

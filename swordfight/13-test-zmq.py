@@ -34,7 +34,7 @@ for i in range(tests):
     answer = socket.recv_json()
     # print(answer)
 
-    req = {"robot": {"set_pos": {"pos":[0, 0, 0, 0, 0, 0]}}}
+    req = {"robot": {"set_pos": {"positions":[0, 0, 0, 0, 0, 0]}}}
     socket.send_json(req)
     answer = socket.recv_json()
     # print(answer)
