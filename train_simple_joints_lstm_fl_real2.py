@@ -19,10 +19,10 @@ try:
 except:
     hyperdash_support = False
 
-HIDDEN_NODES = 128
+HIDDEN_NODES = 256
 LSTM_LAYERS = 3
-EXPERIMENT = 5
-EPOCHS = 10
+EXPERIMENT = 7
+EPOCHS = 5
 MODEL_PATH = "./trained_models/lstm_real_v2_exp{}_l{}_n{}.pt".format(
     EXPERIMENT,
     LSTM_LAYERS,
