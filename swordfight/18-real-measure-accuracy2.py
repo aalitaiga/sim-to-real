@@ -6,11 +6,12 @@ import torch
 from torch.autograd import Variable
 from tqdm import tqdm
 
+from simple_joints_lstm.lstm_net_real_v3 import LstmNetRealv3
 from simple_joints_lstm.lstm_simple_net2_real import LstmSimpleNet2Real
 
 DATASET_PATH = "~/data/sim2real/dataset-real-{}-normalized.npz"  # {} is either "train" or "test"
 
-ds_train = np.load(os.path.expanduser(DATASET_PATH.format("train")))
+ds_train = np.load(os.path.expanduser(DATASET_PATH.format("test")))
 
 x_train = ds_train["ds_in"]
 y_train = ds_train["ds_diff"]
@@ -24,9 +25,7 @@ def double_squeeze(data):
 
 
 def data_to_var(data):
-    return (Variable(double_unsqueeze(data[:12])),
-            Variable(double_unsqueeze(data[12:24])),
-            Variable(double_unsqueeze(data[24:])))
+    return (Variable(double_unsqueeze(data)))
 
 
 def se(A, B):
@@ -36,13 +35,13 @@ out = []
 
 # ["1_v1_3l_128", "2_v1_3l_256", "3_v1_5l_128", "4_v1_5l_256"]
 
-for model in ["5_l3_n128","6_l5_n128","7_l3_n256","8_l5_n256"]:
+for model in [(5,3,128),(6,5,128),(7,3,256),(8,5,256)]:
 
-    model_file = "../trained_models/lstm_real_v2_exp{}_best".format(model)
+    model_file = "../trained_models/lstm_real_v2_exp{}_l{}_n{}.pt".format(*model)
 
     stored_model = torch.load(model_file, map_location='cpu')
 
-    lstm = LstmSimpleNet2Real()
+    lstm = LstmNetRealv3(layers=model[1], nodes=model[2])
     lstm.load_state_dict(stored_model["state_dict"])
     lstm.eval()
 
@@ -74,16 +73,16 @@ for model, err in out:
 
 ## NORMAL MODELS
 
-# 1_v1_3l_128 24016414.0
-# 2_v1_3l_256 33650284.0
-# 3_v1_5l_128 26463222.0
-# 4_v1_5l_256 20966040.0
+# (5, 3, 128) 7951.0293
+# (6, 5, 128) 7791.881
+# (7, 3, 256) 7838.174
+# (8, 5, 256) 7752.9487
 
 ## "BEST" MODELS
 
-# 1_v1_3l_128 24016414.0
-# 2_v1_3l_256 33650284.0
-# 3_v1_5l_128 28269048.0
-# 4_v1_5l_256 35018588.0
+# (5, 3, 128) 7951.0293
+# (6, 5, 128) 7791.881
+# (7, 3, 256) 7838.174
+# (8, 5, 256) 7896.268
 
 
