@@ -24,13 +24,13 @@ for sample_idx in range(10):
     action_data.append(ds_action[ds_epi == epi][0:30, 0])
     joint1_data.append(ds_curr_real[ds_epi == epi][0:30, 0])
 
-    # for i in range(50):
-    # print (i,"=")
-    # print("real t1:", ds_curr_real[ds_epi == epi][i].round(2))
-    # print("sim_ t2:", ds_next_sim[ds_epi == epi][i].round(2))
-    # print("action_:", ds_action[ds_epi == epi][i].round(2))
-    # print("real t2:", ds_next_real[ds_epi == epi][i].round(2))
-    # print("===")
+    for i in range(50):
+        print (i,"=")
+        print("real t1:", ds_curr_real[ds_epi == epi][i].round(2))
+        print("sim_ t2:", ds_next_sim[ds_epi == epi][i].round(2))
+        print("action_:", ds_action[ds_epi == epi][i].round(2))
+        print("real t2:", ds_next_real[ds_epi == epi][i].round(2))
+        print("===")
 
 
 y_action = np.hstack(action_data)

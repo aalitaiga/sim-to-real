@@ -16,9 +16,9 @@ try:
 except:
     hyperdash_support = False
 
-HIDDEN_NODES = 256
-LSTM_LAYERS = 5
-EXPERIMENT = 8
+HIDDEN_NODES = 128
+LSTM_LAYERS = 3
+EXPERIMENT = 11
 EPOCHS = 5
 MODEL_PATH = "./trained_models/lstm_real_v4_exp{}_l{}_n{}.pt".format(
     EXPERIMENT,
@@ -53,6 +53,7 @@ if torch.cuda.is_available():
     net = net.cuda()
 
 net = net.float()
+
 
 def extract(dataslice):
     x, y, epi = (Variable(dataslice["x"]).float(),
@@ -130,7 +131,22 @@ for epoch in np.arange(EPOCHS):
 
             delta = net.forward(x_cat)
 
-            loss = loss_function(x_cat[:, :, :12] + delta, y_cat)
+            # for idx in range(len(x_cat)):
+            #     print(idx, "=")
+            #     print("real t1_x:", np.around(x_cat[idx, 0, 12:24].cpu().data.numpy(), 2))
+            #     print("sim_ t2_x:", np.around(x_cat[idx, 0, :12].cpu().data.numpy(), 2))
+            #     print("action__x:", np.around(x_cat[idx, 0, 24:].cpu().data.numpy(), 2))
+            #     print("real t2_x:",
+            #           np.around(x_cat[idx, 0, :12].cpu().data.numpy() + y_cat[idx, 0].cpu().data.numpy(), 2))
+            #     print("real t2_y:",
+            #           np.around(x_cat[idx, 0, :12].cpu().data.numpy() + delta[idx, 0].cpu().data.numpy(), 2))
+            #     print("delta___x:",
+            #           np.around(y_cat[idx, 0].cpu().data.numpy(), 3))
+            #     print("delta___y:",
+            #           np.around(delta[idx, 0].cpu().data.numpy(), 3))
+            #     print("===")
+
+            loss = loss_function(delta, y_cat) #OMFG I had the loss wrong -.-
             loss.backward()
             optimizer.step()
 
@@ -139,7 +155,7 @@ for epoch in np.arange(EPOCHS):
             epi_x_old = epi_x
 
             loss_episode = loss.clone().cpu().data.numpy()[0]
-            diff_episode = F.mse_loss(x_cat[:, :, :12], y_cat).clone().cpu().data.numpy()[0]
+            diff_episode = F.mse_loss(x_cat[:, :, :12], x_cat[:, :, :12]+y_cat).clone().cpu().data.numpy()[0]
 
             loss.detach_()
             net.hidden[0].detach_()
