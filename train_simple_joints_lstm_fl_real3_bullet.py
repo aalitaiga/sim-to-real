@@ -6,7 +6,6 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
-from simple_joints_lstm.dataset_real_smol import DatasetRealSmol
 from simple_joints_lstm.dataset_real_smol_bullet import DatasetRealSmolBullet
 from simple_joints_lstm.lstm_net_real_v3 import LstmNetRealv3
 
@@ -17,16 +16,16 @@ try:
 except:
     hyperdash_support = False
 
-HIDDEN_NODES = 128
-LSTM_LAYERS = 3
-EXPERIMENT = 9
-EPOCHS = 10
-MODEL_PATH = "./trained_models/lstm_real_v3_exp{}_l{}_n{}.pt".format(
+HIDDEN_NODES = 256
+LSTM_LAYERS = 5
+EXPERIMENT = 8
+EPOCHS = 5
+MODEL_PATH = "./trained_models/lstm_real_v4_exp{}_l{}_n{}.pt".format(
     EXPERIMENT,
     LSTM_LAYERS,
     HIDDEN_NODES
 )
-MODEL_PATH_BEST = "./trained_models/lstm_real_v3_exp{}_l{}_n{}_best.pt".format(
+MODEL_PATH_BEST = "./trained_models/lstm_real_v4_exp{}_l{}_n{}_best.pt".format(
     EXPERIMENT,
     LSTM_LAYERS,
     HIDDEN_NODES

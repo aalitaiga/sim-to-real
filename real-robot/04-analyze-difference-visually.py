@@ -9,7 +9,7 @@ from itertools import cycle
 
 cycol = cycle('bgrcmk')
 
-ds = np.load(os.path.expanduser("~/data/sim2real/dataset-real-{}-normalized-bullet.npz".format("test")))
+ds = np.load(os.path.expanduser("~/data/sim2real/dataset-real-{}-normalized-bullet2.npz".format("test")))
 
 ds_curr_real = ds["ds_curr_real"]
 ds_next_real = ds["ds_next_real"]

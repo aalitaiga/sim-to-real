@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 for run in ["train", "test"]:
     robot = SingleRobot(debug=True, robot_model="ergojr-penholder")
-    ds = np.load(os.path.expanduser("~/data/sim2real/dataset-real-{}-normalized-onlyRobot2.npz".format(run)))
+    ds = np.load(os.path.expanduser("~/data/sim2real/data-realigned-{}.npz".format(run)))
 
     ds_curr_real = ds["ds_curr_real"]
     ds_next_real = ds["ds_next_real"]
@@ -33,7 +33,7 @@ for run in ["train", "test"]:
 
     print(ds_next_sim.shape)
 
-    np.savez(os.path.expanduser("~/data/sim2real/dataset-real-{}-normalized-bullet2.npz".format(run)),
+    np.savez(os.path.expanduser("~/data/sim2real/data-realigned-{}-bullet3.npz".format(run)),
              ds_curr_real=ds_curr_real,
              ds_next_real=ds_next_real,
              ds_next_sim=ds_next_sim,
