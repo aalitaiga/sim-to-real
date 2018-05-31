@@ -4,13 +4,15 @@ import numpy as np
 
 
 class DatasetRealSmolBullet(Dataset):
-    def __init__(self, path="~/data/sim2real/dataset-real-{}-normalized-bullet.npz", train=True):
+    def __init__(self, path="~/data/sim2real/data-realigned-{}-bullet3.npz", train=True):
         super().__init__()
 
         ds_name = "train"
         if not train:
             ds_name = "test"
         path_ext = path.format(ds_name)
+
+        print ("using dataset:",path_ext)
 
         ds = np.load(os.path.expanduser(path_ext))
 
@@ -46,7 +48,7 @@ if __name__ == '__main__':
 
     print(dsr[10])
 
-    for i in range(50,60):
+    for i in range(10,20):
         print("real t1:", dsr[i]["x"][12:24].round(2))
         print("sim_ t2:", dsr[i]["x"][:12].round(2))
         print("action_:", dsr[i]["x"][24:].round(2))
