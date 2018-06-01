@@ -45,7 +45,7 @@ out = []
 
 for model in [(1, 3, 128), (2, 5, 128), (3, 3, 256), (4, 5, 256)]:
 
-    model_file = "../trained_models/lstm_real_v4_exp{}_l{}_n{}_best.pt".format(*model)
+    model_file = "../trained_models/lstm_real_v5_exp{}_l{}_n{}.pt".format(*model)
 
     print(model_file)
 
@@ -62,15 +62,15 @@ for model in [(1, 3, 128), (2, 5, 128), (3, 3, 256), (4, 5, 256)]:
 
     for i in tqdm(range(len(x_train))):
         inf = double_squeeze(lstm.forward(data_to_var(x_train[i])))
-        print(i, "=")
-        print("real t1_x:", np.around(x_train[i, 12:24], 2))
-        print("sim_ t2_x:", np.around(x_train[i, :12], 2))
-        print("action__x:", np.around(x_train[i, 24:], 2))
-        print("real t2_x:", np.around(x_train[i, :12] + y_train[i], 2))
-        print("real t2_y:", np.around(x_train[i, :12] + inf, 2))
-        print("delta___x:", np.around(y_train[i], 2))
-        print("delta___y:", np.around(inf, 2))
-        print("===")
+        # print(i, "=")
+        # print("real t1_x:", np.around(x_train[i, 12:24], 2))
+        # print("sim_ t2_x:", np.around(x_train[i, :12], 2))
+        # print("action__x:", np.around(x_train[i, 24:], 2))
+        # print("real t2_x:", np.around(x_train[i, :12] + y_train[i], 2))
+        # print("real t2_y:", np.around(x_train[i, :12] + inf, 2))
+        # print("delta___x:", np.around(y_train[i], 2))
+        # print("delta___y:", np.around(inf, 2))
+        # print("===")
         serr = se(inf, y_train[i])
         cumm_err += serr
 
@@ -82,7 +82,7 @@ for model in [(1, 3, 128), (2, 5, 128), (3, 3, 256), (4, 5, 256)]:
                 lstm.zero_hidden()
                 action = 0
 
-        if i == 20: break
+        # if i == 20: break
 
     out.append((model, cumm_err))
 
@@ -91,11 +91,11 @@ for model, err in out:
 
 ## NORMAL MODELS
 
-# (1, 3, 128) 9419.109
-# (2, 5, 128) 9421.687
-# (3, 3, 256) 9515.12
-# (4, 5, 256) 9308.303
+# same
 
 ## "BEST" MODELS
 
-# same
+# (1, 3, 128) 53.329807
+# (2, 5, 128) 64.69935
+# (3, 3, 256) 64.90537
+# (4, 5, 256) 61.024555
