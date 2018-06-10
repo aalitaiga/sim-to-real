@@ -18,7 +18,7 @@ except:
 
 HIDDEN_NODES = 128
 LSTM_LAYERS = 3
-EXPERIMENT = 1
+EXPERIMENT = 5
 EPOCHS = 5
 MODEL_PATH = "./trained_models/lstm_real_v6_exp{}_l{}_n{}.pt".format(
     EXPERIMENT,
@@ -68,8 +68,8 @@ def extract(dataslice):
 
 
 def printEpochLoss(epoch_idx, epoch_len, loss_epoch, diff_epoch):
-    loss_avg = round(float(loss_epoch) / epoch_len, 2)
-    diff_avg = round(float(diff_epoch) / epoch_len, 2)
+    loss_avg = round(float(loss_epoch) / (epoch_len+np.finfo(np.float32).eps), 2)
+    diff_avg = round(float(diff_epoch) / (epoch_len+np.finfo(np.float32).eps), 2)
     print("epoch {}, "
           "loss: {}, loss avg: {}, "
           "diff: {}, diff avg: {}".format(
@@ -118,13 +118,14 @@ for epoch in np.arange(EPOCHS):
     x_buf = []
     y_buf = []
 
+    loss_buffer = Variable(torch.zeros(1))
+
     for epi, data in enumerate(dataloader_train):
         x, y, epi_x = extract(data)
 
         delta = net.forward(x)
         loss = loss_function(delta, y)
-        loss.backward(retain_graph=True)
-        optimizer.step()
+        loss_buffer += loss
 
         loss_episode = loss.clone().cpu().data.numpy()[0]
         diff_episode = F.mse_loss(x[:, :, :12], x[:, :, :12] + y).clone().cpu().data.numpy()[0]
@@ -132,6 +133,8 @@ for epoch in np.arange(EPOCHS):
         diff_epoch += diff_episode
 
         if epi_x != epi_x_old or epi == len(dataset_train) - 1:
+            loss.backward()
+            optimizer.step()
 
             loss.detach_()
             net.hidden[0].detach_()
@@ -139,6 +142,7 @@ for epoch in np.arange(EPOCHS):
             net.zero_grad()
             net.zero_hidden()
             optimizer.zero_grad()
+            epi_x_old = epi_x
 
             if exp is not None:
                 exp.metric("loss episode", loss_episode)
@@ -146,6 +150,7 @@ for epoch in np.arange(EPOCHS):
                 exp.metric("epoch", epoch)
 
 
+    print("loss_epoch", loss_epoch)
     printEpochLoss(epoch, epi_x_old, loss_epoch, diff_epoch)
     saveModel(
         state=net.state_dict(),
@@ -182,8 +187,8 @@ for epoch in np.arange(EPOCHS):
             y_buf = []
             epi_x_old = epi_x
 
-        x_buf.append(x)
-        y_buf.append(y)
+        x_buf.append(x.squeeze(0))
+        y_buf.append(y.squeeze(0))
 
     if hyperdash_support:
         exp.metric("loss test mean", np.mean(loss_total))
