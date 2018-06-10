@@ -68,8 +68,8 @@ def extract(dataslice):
 
 
 def printEpochLoss(epoch_idx, epoch_len, loss_epoch, diff_epoch):
-    loss_avg = round(float(loss_epoch) / (epoch_len+np.finfo(np.float32).eps), 2)
-    diff_avg = round(float(diff_epoch) / (epoch_len+np.finfo(np.float32).eps), 2)
+    loss_avg = round(float(loss_epoch) / epoch_len, 2)
+    diff_avg = round(float(diff_epoch) / epoch_len, 2)
     print("epoch {}, "
           "loss: {}, loss avg: {}, "
           "diff: {}, diff avg: {}".format(
@@ -87,6 +87,7 @@ def printEpochLoss(epoch_idx, epoch_len, loss_epoch, diff_epoch):
 
 
 def saveModel(state, epoch, loss_epoch, diff_epoch, is_best, epoch_len):
+    print("saving...")
     torch.save({
         "epoch": epoch,
         "epoch_len": epoch_len,
@@ -96,6 +97,7 @@ def saveModel(state, epoch, loss_epoch, diff_epoch, is_best, epoch_len):
     }, MODEL_PATH)
     if is_best:
         shutil.copyfile(MODEL_PATH, MODEL_PATH_BEST)
+    print("saved.")
 
 
 loss_function = nn.MSELoss()
@@ -109,6 +111,14 @@ optimizer = optim.Adam(net.parameters())
 
 loss_history = [np.inf]  # very high loss because loss can't be empty for min()
 
+
+def makeLossBuffer():
+    loss_buffer = Variable(torch.zeros(1))
+    if torch.cuda.is_available():
+        loss_buffer = loss_buffer.cuda()
+    return loss_buffer
+
+
 for epoch in np.arange(EPOCHS):
 
     loss_epoch = 0
@@ -117,17 +127,21 @@ for epoch in np.arange(EPOCHS):
     epi_x_old = 0
     x_buf = []
     y_buf = []
+    variables_to_delete = []
 
-    loss_buffer = Variable(torch.zeros(1))
-    if torch.cuda.is_available():
-        loss_buffer = loss_buffer.cuda()
+    loss_buffer = makeLossBuffer()
 
     for epi, data in enumerate(dataloader_train):
         x, y, epi_x = extract(data)
 
+        variables_to_delete.append(x)
+        variables_to_delete.append(y)
+
         delta = net.forward(x)
+        variables_to_delete.append(delta)
         loss = loss_function(delta, y)
         loss_buffer += loss
+        variables_to_delete.append(loss)
 
         loss_episode = loss.clone().cpu().data.numpy()[0]
         diff_episode = F.mse_loss(x[:, :, :12], x[:, :, :12] + y).clone().cpu().data.numpy()[0]
@@ -139,12 +153,18 @@ for epoch in np.arange(EPOCHS):
             optimizer.step()
 
             loss.detach_()
+            # cleanup
+            for element in variables_to_delete:
+                del element
+            del loss_buffer
+            variables_to_delete = []
+            loss_buffer = makeLossBuffer()
+
             net.hidden[0].detach_()
             net.hidden[1].detach_()
             net.zero_grad()
             net.zero_hidden()
             optimizer.zero_grad()
-            loss_buffer.zero_()
 
             epi_x_old = epi_x
 
@@ -152,7 +172,6 @@ for epoch in np.arange(EPOCHS):
                 exp.metric("loss episode", loss_episode)
                 exp.metric("diff episode", diff_episode)
                 exp.metric("epoch", epoch)
-
 
     print("loss_epoch", loss_epoch)
     printEpochLoss(epoch, epi_x_old, loss_epoch, diff_epoch)
