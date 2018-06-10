@@ -119,6 +119,8 @@ for epoch in np.arange(EPOCHS):
     y_buf = []
 
     loss_buffer = Variable(torch.zeros(1))
+    if torch.cuda.is_available():
+        loss_buffer = loss_buffer.cuda()
 
     for epi, data in enumerate(dataloader_train):
         x, y, epi_x = extract(data)
@@ -142,6 +144,8 @@ for epoch in np.arange(EPOCHS):
             net.zero_grad()
             net.zero_hidden()
             optimizer.zero_grad()
+            loss_buffer.zero_()
+
             epi_x_old = epi_x
 
             if exp is not None:
