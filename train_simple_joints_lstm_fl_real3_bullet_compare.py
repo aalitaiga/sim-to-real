@@ -230,9 +230,9 @@ for epoch in np.arange(EPOCHS):
                 net.hidden[1].detach_()
                 net.zero_grad()
                 net.zero_hidden()
-                del loss_lotsabackprop
-                del loss_concat
-                del loss_lossadd
+            del loss_lotsabackprop
+            del loss_concat
+            del loss_lossadd
 
 
     if hyperdash_support:
