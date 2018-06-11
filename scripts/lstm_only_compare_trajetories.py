@@ -5,9 +5,13 @@ import numpy as np
 from torch import from_numpy, load
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from pylab import rcParams
 
 from simple_joints_lstm.pusher_lstm import LstmSimpleNet2Pusher
 
+rcParams['axes.facecolor'] = 'white'
+rcParams['figure.figsize'] = 15, 9
 plt.style.use('ggplot')
 np.random.seed(0)
 
@@ -105,10 +109,14 @@ print(j)
 # video_recorder.enabled = False
 # video_recorder2.close()
 # video_recorder2.enabled = False
+cm_name ='tab10'
+color_map = cm.get_cmap(cm_name)
+colors = color_map([x/(float(num_obs)+2) for x in range(num_obs)])
 
 x = np.arange(j+1)
 for y in range(num_obs):
-    plt.plot(x, array[0,:,y])
-    plt.plot(x, array[1,:,y], linestyle='--')
-plt.title("Forward simulation on one pusher episode with real data only")
+    plt.plot(x, array[0,:,y], color=colors[y])
+    plt.plot(x, array[1,:,y], linestyle='--', color=colors[y])
+plt.title("Forward simulation on Pusher3Dof")
+plt.savefig('forward_lstm.jpg', bbox_inches='tight')
 plt.show()
