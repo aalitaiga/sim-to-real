@@ -4,6 +4,9 @@ from gym.monitoring import VideoRecorder
 import numpy as np
 
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import seaborn as sns; sns.set()
+from pylab import rcParams
 
 from fuel.streams import DataStream
 from fuel.schemes import SequentialScheme
@@ -11,7 +14,10 @@ from fuel.datasets.hdf5 import H5PYDataset
 
 from simple_joints_lstm.pusher_lstm import LstmSimpleNet2Pusher
 
-plt.style.use('ggplot')
+plt.rc("axes.spines", top=False, right=False, bottom=True)
+sns.set_style("white")
+rcParams['figure.figsize'] = 15, 9
+# plt.style.use('ggplot')
 
 np.random.seed(0)
 
@@ -24,7 +30,8 @@ env.env._init(
 env.reset()
 
 env2 = gym.make("Pusher3Dof2Plus-v0")
-model = "/u/alitaiga/repositories/sim-to-real/trained_models/adrien_lstm_pusher_3l_128_best.pt"
+# model = "/u/alitaiga/repositories/sim-to-real/trained_models/old_models/adrien_lstm_pusher_3l_128_best.pt"
+model = "/u/alitaiga/repositories/sim-to-real/trained_models/lstm_pusher_3l_128_2000_best.pt"
 env2.load_model(LstmSimpleNet2Pusher(27, 6, use_cuda=False), model)
 env2.env.env._init(
     torques=[1, 1, 1],
@@ -59,11 +66,12 @@ def match_env(env_1, env_2):
 length = 10
 
 video_recorder = VideoRecorder(
-    env, 'real_backlash.mp4', enabled=True)
+    env, 'real_backlash.mp4', enabled=False)
 video_recorder2 = VideoRecorder(
-    env2, 'sim+.mp4', enabled=True)
+    env2, 'sim+.mp4', enabled=False)
 
-num_obs = 6
+# Only first six predicted by the lstm
+num_obs = 10
 array = np.zeros((2, 100, num_obs))
 
 for i, data in enumerate(range(1)):
@@ -97,10 +105,16 @@ for i, data in enumerate(range(1)):
 # video_recorder.enabled = False
 # video_recorder2.close()
 # video_recorder2.enabled = False
+# colors = ['r', 'g', 'b', 'y', 'c', 'm', 'k']
+# cm_name = 'Pastel1'
+cm_name ='tab10'
+color_map = cm.get_cmap(cm_name)
+colors = color_map([x/(float(num_obs)+2) for x in range(num_obs)])
 
 x = np.arange(j+1)
 for y in range(num_obs):
-    plt.plot(x, array[0,:,y])
-    plt.plot(x, array[1,:,y], linestyle='--')
-plt.title("Forward simulation on one pusher episode")
+    plt.plot(x, array[0,:,y], color=colors[y])
+    plt.plot(x, array[1,:,y], linestyle='--', color=colors[y])
+plt.title("Forward simulation on Pusher3Dof")
+plt.savefig('forward_sim+_all.jpg', bbox_inches='tight')
 plt.show()

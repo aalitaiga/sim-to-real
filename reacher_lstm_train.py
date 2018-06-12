@@ -41,11 +41,11 @@ batch_size = 1
 train_data = H5PYDataset(
     DATASET_PATH, which_sets=('train',), sources=('s_transition_obs','r_transition_obs', 'obs', 'actions')
 )
-stream_train = DataStream(train_data, iteration_scheme=SequentialScheme(train_data.num_examples, batch_size))
+stream_train = DataStream(train_data, iteration_scheme=ShuffledScheme(train_data.num_examples, batch_size))
 valid_data = H5PYDataset(
-    DATASET_PATH, which_sets=('valid',), sources=('s_transition_obs','r_transition_obs', 'obs', 'actions')
+    DATASET_PATH, which_sets=('valid',), sources=SequentialScheme('s_transition_obs','r_transition_obs', 'obs', 'actions')
 )
-stream_valid = DataStream(valid_data, iteration_scheme=ShuffledScheme(valid_data.num_examples, batch_size))
+stream_valid = DataStream(valid_data, iteration_scheme=(valid_data.num_examples, batch_size))
 data = next(stream_train.get_epoch_iterator(as_dict=True))
 net = LstmReacher(22, 4, normalized=False, use_cuda=CUDA)
 print(net)
