@@ -122,6 +122,9 @@ for epoch in np.arange(EPOCHS):
         optimizer.zero_grad()
 
         loss = Variable(torch.zeros(1))
+        if torch.cuda.is_available():
+            loss = loss.cuda()
+            
         diff = 0
 
         for frame in range(len(x)):
