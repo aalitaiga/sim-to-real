@@ -16,6 +16,8 @@ ds = DatasetProduction()
 ds.load("~/data/sim2real/data-realigned-v3-{}-bullet.npz".format("train"))
 
 net = LstmNetRealv3(nodes=128, layers=3)
+if torch.cuda.is_available():
+    net = net.cuda()
 
 HIDDEN_NODES = 128
 LSTM_LAYERS = 3
@@ -48,7 +50,10 @@ def data_to_var(sim_t2, real_t1, action):
 
 
 def to_var(x, volatile=False):
-    return Variable(torch.from_numpy(x), volatile=volatile)
+    x = Variable(torch.from_numpy(x), volatile=volatile)
+    if torch.cuda.is_available():
+        x = x.cuda()
+    return x
 
 
 def save_model(state):
