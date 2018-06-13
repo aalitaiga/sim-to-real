@@ -17,7 +17,7 @@ from simple_joints_lstm.lstm_net_real_v3 import LstmNetRealv3
 cycol = cycle('bgrcmk')
 
 ds = DatasetProduction()
-ds.load("~/data/sim2real/data-realigned-v3-{}.npz".format("train"))
+ds.load("~/data/sim2real/data-realigned-v3-{}-bullet.npz".format("train"))
 
 epi = np.random.randint(0, len(ds.current_real))
 
@@ -160,7 +160,7 @@ for i in range(6):
     plt.plot(
         np.arange(0, 299),
         joints_simplus[:, i],
-        c="cyan",
+        c="black",
         dashes=[1, 4],
         label="simplus"
     )
