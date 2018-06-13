@@ -26,4 +26,7 @@ for run in ["train", "test"]:
 
     ds.save("~/data/sim2real/data-realigned-v3-{}-bullet.npz".format(run))
 
+    print("ds.next_sim.max()",ds.next_sim.max())
+    print("ds.next_sim.min()",ds.next_sim.min())
+
     robot.close()
