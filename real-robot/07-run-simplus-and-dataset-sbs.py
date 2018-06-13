@@ -14,7 +14,7 @@ ds_next_sim = ds["ds_next_sim"]
 ds_action = ds["ds_action"]
 ds_epi = ds["ds_epi"]
 
-env = gym.make("ErgoFightStatic-Headless-Shield-Move-HalfRand-Bullet-Plus-v0")
+env = gym.make("ErgoFightStatic-Headless-Shield-Move-HalfRand-Bullet-Plus-xii-v0")
 _ = env.reset()
 old_obs = ds_curr_real[0]
 env.set_state(ds_curr_real[0])

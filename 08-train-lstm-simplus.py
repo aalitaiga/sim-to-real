@@ -12,17 +12,17 @@ from simple_joints_lstm.lstm_net_real_v3 import LstmNetRealv3
 
 DEBUG = False
 # DEBUG = True
-HIDDEN_NODES = 256
-LSTM_LAYERS = 5
-EXPERIMENT = 3
+HIDDEN_NODES = 128
+LSTM_LAYERS = 3
+EXPERIMENT = 1
 EPOCHS = 5
-MODEL_PATH = "./trained_models/lstm_real_v8_exp{}_l{}_n{}.pt".format(
+MODEL_PATH = "./trained_models/lstm_real_vX3_exp{}_l{}_n{}.pt".format(
     EXPERIMENT,
     LSTM_LAYERS,
     HIDDEN_NODES
 )
 
-ds = np.load(os.path.expanduser("~/data/sim2real/data-realigned-{}-bullet3.npz".format("train")))
+ds = np.load(os.path.expanduser("~/data/sim2real/data-realigned-v2-{}-bullet.npz".format("train")))
 
 ds_curr_real = ds["ds_curr_real"]
 ds_next_real = ds["ds_next_real"]
@@ -47,7 +47,7 @@ optimizer = torch.optim.Adam(env.get_parameters())
 loss_function = torch.nn.MSELoss()
 
 
-exp = Experiment("[sim2real] lstm-real v3-directSim+")
+exp = Experiment("[sim2real] lstm-real v5-directSim+")
 exp.param("exp", EXPERIMENT)
 exp.param("layers", LSTM_LAYERS)
 exp.param("nodes", HIDDEN_NODES)
