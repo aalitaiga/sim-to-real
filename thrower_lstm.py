@@ -198,7 +198,7 @@ for epoch in np.arange(EPOCHS):
         net.hidden[1].detach_()
 
     viz.update(epoch, np.mean(loss_epoch), "loss")
-    viz.update(epoch, np.mean(diff_episode), "diff")
+    viz.update(epoch, np.mean(diff_epoch), "diff")
     scheduler.step()
 
 
