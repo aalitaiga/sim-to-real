@@ -11,7 +11,7 @@ from itertools import cycle
 cycol = cycle('bgrcmk')
 
 ds = DatasetProduction()
-ds.load("~/data/sim2real/data-realigned-v2-{}-bullet.npz".format("test"))
+ds.load("~/data/sim2real/data-realigned-v3-{}-bullet.npz".format("test"))
 
 
 epi = np.random.randint(0, len(ds.current_real))

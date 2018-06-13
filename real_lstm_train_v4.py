@@ -21,12 +21,12 @@ HIDDEN_NODES = 128
 LSTM_LAYERS = 3
 EXPERIMENT = 1
 EPOCHS = 5
-MODEL_PATH = "./trained_models/lstm_real_vX_exp{}_l{}_n{}.pt".format(
+MODEL_PATH = "./trained_models/lstm_real_vX4_exp{}_l{}_n{}.pt".format(
     EXPERIMENT,
     LSTM_LAYERS,
     HIDDEN_NODES
 )
-MODEL_PATH_BEST = "./trained_models/lstm_real_vX_exp{}_l{}_n{}_best.pt".format(
+MODEL_PATH_BEST = "./trained_models/lstm_real_vX4_exp{}_l{}_n{}_best.pt".format(
     EXPERIMENT,
     LSTM_LAYERS,
     HIDDEN_NODES

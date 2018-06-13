@@ -6,7 +6,7 @@ import numpy as np
 
 
 class DatasetRealSmolBulletV2(Dataset):
-    def __init__(self, path="~/data/sim2real/data-realigned-v2-{}-bullet.npz", train=True):
+    def __init__(self, path="~/data/sim2real/data-realigned-v3-{}-bullet.npz", train=True):
         super().__init__()
 
         ds_name = "train"
