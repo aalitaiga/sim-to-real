@@ -146,7 +146,7 @@ for epoch in np.arange(EPOCHS):
             #           np.around(delta[idx, 0].cpu().data.numpy(), 3))
             #     print("===")
 
-            loss = loss_function(delta, y_cat) #OMFG I had the loss wrong -.-
+            loss = loss_function(delta, y_cat)  # OMFG I had the loss wrong -.-
             loss.backward()
             optimizer.step()
 
@@ -155,7 +155,7 @@ for epoch in np.arange(EPOCHS):
             epi_x_old = epi_x
 
             loss_episode = loss.clone().cpu().data.numpy()[0]
-            diff_episode = F.mse_loss(x_cat[:, :, :12], x_cat[:, :, :12]+y_cat).clone().cpu().data.numpy()[0]
+            diff_episode = F.mse_loss(x_cat[:, :, :12], x_cat[:, :, :12] + y_cat).clone().cpu().data.numpy()[0]
 
             loss.detach_()
             net.hidden[0].detach_()
@@ -199,10 +199,10 @@ for epoch in np.arange(EPOCHS):
             y_cat = torch.cat(y_buf, 0).unsqueeze(1)
 
             delta = net.forward(x_cat)
-            loss = loss_function(x_cat[:, :, :12] + delta, y_cat)
+            loss = loss_function(delta, y_cat)
 
             loss_total.append(loss.clone().cpu().data.numpy()[0])
-            diff_total.append(F.mse_loss(x_cat[:, :, :12], y_cat).clone().cpu().data.numpy()[0])
+            diff_total.append(F.mse_loss(x_cat[:, :, :12], x_cat[:, :, :12] + y_cat).clone().cpu().data.numpy()[0])
 
             x_buf = []
             y_buf = []

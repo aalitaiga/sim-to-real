@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
 from simple_joints_lstm.dataset_real_smol_bullet_nosim import DatasetRealSmolBulletNoSim
-from simple_joints_lstm.lstm_net_real_v3_nosim import LstmNetRealv3NoSim
+from simple_joints_lstm.lstm_net_real_v3 import LstmNetRealv3
 
 try:
     from hyperdash import Experiment
@@ -42,7 +42,8 @@ dataset_test = DatasetRealSmolBulletNoSim(train=False)
 dataloader_train = DataLoader(dataset_train, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
 dataloader_test = DataLoader(dataset_test, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
 
-net = LstmNetRealv3NoSim(
+net = LstmNetRealv3(
+    n_input_state_sim=0,
     n_input_state_real=12,
     n_input_actions=6,
     nodes=HIDDEN_NODES,
