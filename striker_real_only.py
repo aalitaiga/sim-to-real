@@ -19,91 +19,92 @@ from utils.plot import VisdomExt
 import os
 
 parser = argparse.ArgumentParser(description='LSTM training for Striker')
-parser.add_argument('wdrop', default=0, type=bool)
+# parser.add_argument('wdrop', default=0, type=bool)
 parser.add_argument('dropout', default='0.0', type=float)
 args = parser.parse_args()
 
-max_steps = 25000 #int(sys.argv[1]) or
+max_steps = 25000
 print("Training lstm with: {} datapoints".format(max_steps))
-HIDDEN_NODES = 300
+HIDDEN_NODES = 256
 LSTM_LAYERS = 3
-EPOCHS = 200
+EPOCHS = 250
 DATASET_PATH_REL = "/data/lisa/data/sim2real/striker/"
 DATASET_PATH = DATASET_PATH_REL + "mujoco_striker_{}.h5".format(max_steps)
-MODEL_PATH = "./trained_models/striker_l{}_h{}_d{}_wdrop{}_trained_{}.pt".format(
+MODEL_PATH = "./trained_models/striker_real_l{}_h{}_d{}_{}.pt".format(
     LSTM_LAYERS,
     HIDDEN_NODES,
     args.dropout,
-    args.wdrop,
     max_steps,
 )
-MODEL_PATH_BEST = "./trained_models/striker_l{}_h{}_d{}_wdrop{}_trained_{}_best.pt".format(
+MODEL_PATH_BEST = "./trained_models/striker_real_l{}_h{}_d{}_{}_best.pt".format(
     LSTM_LAYERS,
     HIDDEN_NODES,
     args.dropout,
-    args.wdrop,
     max_steps,
 )
 TRAIN = True
 CONTINUE = False
 CUDA = True
 print(MODEL_PATH_BEST)
-batch_size = 1
+batch_size = 8
 train_data = H5PYDataset(
-    DATASET_PATH, which_sets=('train',), sources=('s_transition_obs','r_transition_obs', 'obs', 'actions')
+    DATASET_PATH, which_sets=('train',), sources=('r_transition_obs', 'obs', 'actions')
 )
-stream_train = DataStream(train_data, iteration_scheme=ShuffledScheme(train_data.num_examples, batch_size))
+stream_train = DataStream(train_data, iteration_scheme=ShuffledScheme(train_data.num_examples, train_data.num_examples))
 valid_data = H5PYDataset(
-    DATASET_PATH, which_sets=('valid',), sources=('s_transition_obs','r_transition_obs', 'obs', 'actions')
+    DATASET_PATH, which_sets=('valid',), sources=('r_transition_obs', 'obs', 'actions')
 )
 stream_valid = DataStream(valid_data, iteration_scheme=SequentialScheme(valid_data.num_examples, batch_size))
 data = next(stream_train.get_epoch_iterator(as_dict=True))
-net = LstmStriker(53, 14, use_cuda=CUDA, batch=batch_size,
+net = LstmStriker(30, 22, use_cuda=CUDA, batch=batch_size,
     hidden_nodes=HIDDEN_NODES, lstm_layers=LSTM_LAYERS, wdrop=False, dropouti=args.dropout)
 print(net)
-# import ipdb; ipdb.set_trace()
+
 if CUDA:
     net.cuda()
 viz = VisdomExt([["loss", "validation loss"],["diff"]],[dict(title='LSTM loss', xlabel='iteration', ylabel='loss'),
 dict(title='Diff loss', xlabel='iteration', ylabel='error')])
 
 # save normalization
-if not os.path.isfile('normalization/striker_25000/mean_obs.npy'):
+if not os.path.isfile('normalization/striker_{}/mean_obs.npy'.format(max_steps)):
     assert data["obs"].shape[0] == train_data.num_examples
-    np.save('normalization/striker_25000/mean_obs.npy', data["obs"].mean(axis=(0, 1)))
-    np.save('normalization/striker_25000/mean_s_transition_obs.npy', data["s_transition_obs"].mean(axis=(0,1)))
-    np.save('normalization/striker_25000/mean_correction.npy', (data["r_transition_obs"] - data["s_transition_obs"])[:,:,:14].mean(axis=(0,1)))
-    np.save('normalization/striker_25000/std_obs.npy', data["obs"].std(axis=(0,1)))
-    np.save('normalization/striker_25000/std_actions.npy', data["actions"].std(axis=(0,1)))
-    np.save('normalization/striker_25000/std_s_transition_obs.npy', data["s_transition_obs"].std(axis=(0,1)))
-    np.save('normalization/striker_25000/std_correction.npy', (data["r_transition_obs"] - data["s_transition_obs"])[:,:,:14].std(axis=(0,1)))
+    # np.save('normalization/striker_{}/mean_obs.npy'.format(max_steps), data["obs"].mean(axis=(0, 1)))
+    # np.save('normalization/striker_{}/mean_s_transition_obs.npy'.format(max_steps), data["s_transition_obs"].mean(axis=(0,1)))
+    # np.save('normalization/striker_{}/std_obs.npy'.format(max_steps), data["obs"].std(axis=(0,1)))
+    # np.save('normalization/striker_{}/std_actions.npy'.format(max_steps), data["actions"].std(axis=(0,1)))
+    # np.save('normalization/striker_{}/std_s_transition_obs.npy'.format(max_steps), data["s_transition_obs"].std(axis=(0,1)))
+    np.save('normalization/striker_{}/mean_correction_obs.npy'.format(max_steps), (data["r_transition_obs"] - data["obs"])[:,:,:22].mean(axis=(0,1)))
+    np.save('normalization/striker_{}/std_correction_obs.npy'.format(max_steps), (data["r_transition_obs"] - data["obs"])[:,:,:22].std(axis=(0,1)))
+
     os._exit(0)
 else:
     means = {
-        'o': np.load('normalization/striker_25000/mean_obs.npy'),
-        's': np.load('normalization/striker_25000/mean_s_transition_obs.npy'),
-        'c': np.load('normalization/striker_25000/mean_correction.npy'),
+        'o': np.load('normalization/striker_{}/mean_obs.npy'.format(max_steps)),
+        's': np.load('normalization/striker_{}/mean_s_transition_obs.npy'.format(max_steps)),
+        'c': np.load('normalization/striker_{}/mean_correction_obs.npy'.format(max_steps)),
     }
 
     std = {
-        'o': np.load('normalization/striker_25000/std_obs.npy'),
-        'a': np.load('normalization/striker_25000/std_actions.npy'),
-        's': np.load('normalization/striker_25000/std_s_transition_obs.npy'),
-        'c': np.load('normalization/striker_25000/std_correction.npy'),
+        'o': np.load('normalization/striker_{}/std_obs.npy'.format(max_steps)),
+        'a': np.load('normalization/striker_{}/std_actions.npy'.format(max_steps)),
+        's': np.load('normalization/striker_{}/std_s_transition_obs.npy'.format(max_steps)),
+        'c': np.load('normalization/striker_{}/std_correction_obs.npy'.format(max_steps)),
     }
-
+    std['c'][19] = 1.0
+    std['c'][22] = 1.0
+import ipdb; ipdb.set_trace()
 def makeIntoVariables(dat):
     input_ = np.concatenate([
         (dat["obs"][:,:,:] - means['o']) / std['o'],
         (dat["actions"] / std['a']),
-        (dat["s_transition_obs"][:,:,:] - means['s']) / std['s']
+        # (dat["s_transition_obs"][:,:,:] - means['s']) / std['s']
     ], axis=2)
     x, y = Variable(
         torch.from_numpy(input_).cuda(),
         requires_grad=False
     ), Variable(
         torch.from_numpy(
-            dat["r_transition_obs"][:,:,:14]
+            dat["r_transition_obs"][:,:,:22]
         ).cuda(),
         requires_grad=False
     )
@@ -172,6 +173,8 @@ for epoch in np.arange(EPOCHS):
 
     for epi, data in enumerate(iterator):
         x, y = makeIntoVariables(data)
+        if x.shape[0] != batch_size:
+            continue
 
         # reset hidden lstm units
         net.zero_grad()
@@ -179,7 +182,8 @@ for epoch in np.arange(EPOCHS):
         optimizer.zero_grad()
 
         correction = net(x)
-        sim_prediction = Variable(torch.from_numpy(data["s_transition_obs"][:,:,:14]), requires_grad=False).cuda()
+        sim_prediction = Variable(torch.from_numpy(data["obs"][:,:,:22]), requires_grad=False).cuda()
+        # import ipdb; ipdb.set_trace()
         loss = loss_function(correction, (y-sim_prediction - mean_c) / std_c).mean()
         loss.backward()
 
@@ -205,15 +209,17 @@ for epoch in np.arange(EPOCHS):
     iterator = stream_valid.get_epoch_iterator(as_dict=True)
     for _, data in enumerate(iterator):
         x, y = makeIntoVariables(data)
+        if x.shape[0] != batch_size:
+            continue
         net.zero_hidden()
         correction = net(x)
-        sim_prediction = Variable(torch.from_numpy(data["s_transition_obs"][:,:,:14]), requires_grad=False).cuda()
+        sim_prediction = Variable(torch.from_numpy(data["obs"][:,:,:22]), requires_grad=False).cuda()
         loss = loss_function(correction, (y - sim_prediction - mean_c) / std_c).mean()
         loss_valid.append(loss.clone().cpu().data.numpy()[0])
     loss_val = np.mean(loss_valid)
     viz.update(epoch, loss_val, "validation loss")
 
-    printEpochLoss(epoch, loss_val, np.mean(loss_epoch), np.mean(diff_episode))
+    printEpochLoss(epoch, loss_val, np.mean(loss_epoch), np.mean(diff_epoch))
 
     if TRAIN:
         saveModel(

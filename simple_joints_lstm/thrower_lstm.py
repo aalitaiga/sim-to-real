@@ -7,10 +7,10 @@ from simple_joints_lstm.weight_drop import WeightDrop
 from .params_pusher import *
 
 
-class LstmStriker(nn.Module):
+class LstmThrower(nn.Module):
     def __init__(self, n_input=15, n_output=6, use_cuda=True, batch=1, hidden_nodes=HIDDEN_NODES,
             lstm_layers=LSTM_LAYERS, use_qrnn=False, wdrop=0., dropouti=0.):
-        super(LstmStriker, self).__init__()
+        super(LstmThrower, self).__init__()
         self.use_cuda = use_cuda
         self.batch = batch
         # self.idrop = nn.Dropout(dropouti)
@@ -49,20 +49,20 @@ class LstmStriker(nn.Module):
         return h, c
 
     def forward(self, data_in):
+        # import ipdb; ipdb.set_trace()
         out = F.leaky_relu(self.linear1(data_in))
         # out = self.idrop(out)
         out, self.hidden = self.lstm1(out.permute((1, 0, 2)), self.hidden)
         out = F.leaky_relu(out.permute((1, 0, 2)))
         out = self.odrop(out)
         out = self.linear2(out)
-        # import ipdb; ipdb.set_trace()
-        out[:,:,19] = 0.0
+
         return out
 
-class LstmStriker2(nn.Module):
+class LstmThrower2(nn.Module):
     def __init__(self, n_input=15, n_output=6, use_cuda=True, batch=1, hidden_nodes=HIDDEN_NODES,
             lstm_layers=LSTM_LAYERS, use_qrnn=False, wdrop=0.5, dropouti=0.3):
-        super(LstmStriker, self).__init__()
+        super(LstmThrower, self).__init__()
         self.use_cuda = use_cuda
         self.batch = batch
 

@@ -23,7 +23,7 @@ print("Training lstm with: {} datapoints".format(max_steps))
 HIDDEN_NODES = 256
 LSTM_LAYERS = 3
 dropout = 0.3
-EPOCHS = 200
+EPOCHS = 250
 DATASET_PATH_REL = "/data/lisa/data/sim2real/"
 DATASET_PATH = DATASET_PATH_REL + "mujoco_striker_trained_{}.h5".format(max_steps)
 MODEL_PATH = "./trained_models/lstm_striker_{}l_{}_trained_{}.pt".format(
@@ -42,7 +42,7 @@ TRAIN = True
 CONTINUE = False
 CUDA = True
 print(MODEL_PATH_BEST)
-batch_size = 1
+batch_size = 8
 train_data = H5PYDataset(
     DATASET_PATH, which_sets=('train',), sources=('s_transition_obs','r_transition_obs', 'obs', 'actions')
 )
@@ -184,7 +184,7 @@ for epoch in np.arange(EPOCHS):
         net.hidden[1].detach_()
 
     viz.update(epoch, np.mean(loss_epoch), "loss")
-    viz.update(epoch, np.mean(diff_episode), "diff")
+    viz.update(epoch, np.mean(diff_epoch), "diff")
     scheduler.step()
 
 

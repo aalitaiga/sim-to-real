@@ -27,7 +27,7 @@ max_steps = 10000 #int(sys.argv[1]) or
 print("Training lstm with: {} datapoints".format(max_steps))
 HIDDEN_NODES = 256
 LSTM_LAYERS = 3
-EPOCHS = 200
+EPOCHS = 250
 DATASET_PATH_REL = "/data/lisa/data/sim2real/striker/"
 DATASET_PATH = DATASET_PATH_REL + "mujoco_striker_trained_{}_2.h5".format(max_steps)
 MODEL_PATH = "./trained_models/striker_l{}_h{}_d{}_wdrop{}_trained_{}.pt".format(
@@ -195,7 +195,7 @@ for epoch in np.arange(EPOCHS):
         net.hidden[1].detach_()
 
     viz.update(epoch, np.mean(loss_epoch), "loss")
-    viz.update(epoch, np.mean(diff_episode), "diff")
+    viz.update(epoch, np.mean(diff_epoch), "diff")
     scheduler.step()
 
 
