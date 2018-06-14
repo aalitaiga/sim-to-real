@@ -76,12 +76,15 @@ for epoch in range(EPOCHS):
         net.hidden[0].detach_()  # !important
         net.hidden[1].detach_()  # !important
         net.zero_grad()
+        optimizer.zero_grad()
 
         robot.set(ds.current_real[epi, 0])
         robot.act2(ds.current_real[epi, 0, :6])
         robot.step()
 
         losses = Variable(torch.zeros(1))
+        if torch.cuda.is_available():
+            losses = losses.cuda()
         diffs = 0
 
         for frame in range(len(ds.current_real[0])):

@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from simple_joints_lstm.dataset_real_smol_bullet_v2 import DatasetRealSmolBulletV2
+from simple_joints_lstm.dataset_real_smol_bullet_v2_nosim import DatasetRealSmolBulletV2NoSim
 from simple_joints_lstm.lstm_net_real_v3 import LstmNetRealv3
 
 try:
@@ -19,14 +20,9 @@ except:
 
 HIDDEN_NODES = 128
 LSTM_LAYERS = 3
-EXPERIMENT = 5
+EXPERIMENT = 1
 EPOCHS = 5
-MODEL_PATH = "./trained_models/lstm_real_vX4_exp{}_l{}_n{}.pt".format(
-    EXPERIMENT,
-    LSTM_LAYERS,
-    HIDDEN_NODES
-)
-MODEL_PATH_BEST = "./trained_models/lstm_real_vX4_exp{}_l{}_n{}_best.pt".format(
+MODEL_PATH = "./trained_models/lstm_real_nosim_vX4_exp{}_l{}_n{}.pt".format(
     EXPERIMENT,
     LSTM_LAYERS,
     HIDDEN_NODES
@@ -36,15 +32,15 @@ MODEL_PATH_BEST = "./trained_models/lstm_real_vX4_exp{}_l{}_n{}_best.pt".format(
 BATCH_SIZE = 1
 VIZ = False
 
-dataset_train = DatasetRealSmolBulletV2(train=True)
-dataset_test = DatasetRealSmolBulletV2(train=False)
+dataset_train = DatasetRealSmolBulletV2NoSim(train=True)
+dataset_test = DatasetRealSmolBulletV2NoSim(train=False)
 
 # batch size has to be 1, otherwise the LSTM doesn't know what to do
 dataloader_train = DataLoader(dataset_train, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
 dataloader_test = DataLoader(dataset_test, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
 
 net = LstmNetRealv3(
-    n_input_state_sim=12,
+    n_input_state_sim=0,
     n_input_state_real=12,
     n_input_actions=6,
     nodes=HIDDEN_NODES,
@@ -94,8 +90,6 @@ def saveModel(state, epoch, loss_epoch, diff_epoch, is_best, epoch_len):
         "epoch_avg_loss": float(loss_epoch) / epoch_len,
         "epoch_avg_diff": float(diff_epoch) / epoch_len
     }, MODEL_PATH)
-    if is_best:
-        shutil.copyfile(MODEL_PATH, MODEL_PATH_BEST)
 
 
 loss_function = nn.MSELoss()
@@ -121,28 +115,31 @@ for epoch in np.arange(EPOCHS):
         net.zero_hidden()
         optimizer.zero_grad()
 
-        loss = Variable(torch.zeros(1))
-        if torch.cuda.is_available():
-            loss = loss.cuda()
+        delta = net.forward(x)
 
-        diff = 0
+        # for idx in range(len(x)):
+        #     print(idx, "=")
+        #     print("real t1_x:", np.around(x[idx, 0, 12:24].cpu().data.numpy(), 2))
+        #     print("sim_ t2_x:", np.around(x[idx, 0, :12].cpu().data.numpy(), 2))
+        #     print("action__x:", np.around(x[idx, 0, 24:].cpu().data.numpy(), 2))
+        #     print("real t2_x:",
+        #           np.around(x[idx, 0, :12].cpu().data.numpy() + y[idx, 0].cpu().data.numpy(), 2))
+        #     print("real t2_y:",
+        #           np.around(x[idx, 0, :12].cpu().data.numpy() + delta[idx, 0].cpu().data.numpy(), 2))
+        #     print("delta___x:",
+        #           np.around(y[idx, 0].cpu().data.numpy(), 3))
+        #     print("delta___y:",
+        #           np.around(delta[idx, 0].cpu().data.numpy(), 3))
+        #     print("===")
 
-        for frame in range(len(x)):
-            delta = net.forward(x[frame].unsqueeze(0))
-            loss += loss_function(delta, y[frame].unsqueeze(0))
-            diff += F.mse_loss(x[frame, :, :12], x[frame, :, :12] + y[frame]).clone().cpu().data.numpy()[0]
-
+        loss = loss_function(delta, y)
         loss.backward()
         optimizer.step()
-        loss.detach_()
 
         loss_episode = loss.clone().cpu().data.numpy()[0]
-        diff_episode = diff
+        diff_episode = F.mse_loss(x[:, :, :12], x[:, :, :12] + y).clone().cpu().data.numpy()[0]
 
-        del loss
-        del x
-        del y
-
+        loss.detach_()
         net.hidden[0].detach_()
         net.hidden[1].detach_()
 

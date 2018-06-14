@@ -8,7 +8,9 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from simple_joints_lstm.dataset_real_smol_bullet_v2 import DatasetRealSmolBulletV2
+from simple_joints_lstm.dataset_real_smol_bullet_v3_directstate import DatasetRealSmolBulletV3DirectState
 from simple_joints_lstm.lstm_net_real_v3 import LstmNetRealv3
+from simple_joints_lstm.lstm_net_real_v4 import LstmNetRealv4
 
 try:
     from hyperdash import Experiment
@@ -19,14 +21,14 @@ except:
 
 HIDDEN_NODES = 128
 LSTM_LAYERS = 3
-EXPERIMENT = 5
+EXPERIMENT = 1
 EPOCHS = 5
-MODEL_PATH = "./trained_models/lstm_real_vX4_exp{}_l{}_n{}.pt".format(
+MODEL_PATH = "./trained_models/lstm_real_vX6_direct_exp{}_l{}_n{}.pt".format(
     EXPERIMENT,
     LSTM_LAYERS,
     HIDDEN_NODES
 )
-MODEL_PATH_BEST = "./trained_models/lstm_real_vX4_exp{}_l{}_n{}_best.pt".format(
+MODEL_PATH_BEST = "./trained_models/lstm_real_vX6_direct_exp{}_l{}_n{}_best.pt".format(
     EXPERIMENT,
     LSTM_LAYERS,
     HIDDEN_NODES
@@ -36,14 +38,14 @@ MODEL_PATH_BEST = "./trained_models/lstm_real_vX4_exp{}_l{}_n{}_best.pt".format(
 BATCH_SIZE = 1
 VIZ = False
 
-dataset_train = DatasetRealSmolBulletV2(train=True)
-dataset_test = DatasetRealSmolBulletV2(train=False)
+dataset_train = DatasetRealSmolBulletV3DirectState(train=True)
+dataset_test = DatasetRealSmolBulletV3DirectState(train=False)
 
 # batch size has to be 1, otherwise the LSTM doesn't know what to do
 dataloader_train = DataLoader(dataset_train, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
 dataloader_test = DataLoader(dataset_test, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
 
-net = LstmNetRealv3(
+net = LstmNetRealv4(
     n_input_state_sim=12,
     n_input_state_real=12,
     n_input_actions=6,
@@ -121,28 +123,16 @@ for epoch in np.arange(EPOCHS):
         net.zero_hidden()
         optimizer.zero_grad()
 
-        loss = Variable(torch.zeros(1))
-        if torch.cuda.is_available():
-            loss = loss.cuda()
+        newstate = net.forward(x)
 
-        diff = 0
-
-        for frame in range(len(x)):
-            delta = net.forward(x[frame].unsqueeze(0))
-            loss += loss_function(delta, y[frame].unsqueeze(0))
-            diff += F.mse_loss(x[frame, :, :12], x[frame, :, :12] + y[frame]).clone().cpu().data.numpy()[0]
-
+        loss = loss_function(newstate, y)
         loss.backward()
         optimizer.step()
-        loss.detach_()
 
         loss_episode = loss.clone().cpu().data.numpy()[0]
-        diff_episode = diff
+        diff_episode = F.mse_loss(x[:,:,:12], y).clone().cpu().data.numpy()[0]
 
-        del loss
-        del x
-        del y
-
+        loss.detach_()
         net.hidden[0].detach_()
         net.hidden[1].detach_()
 
@@ -173,11 +163,11 @@ for epoch in np.arange(EPOCHS):
         x, y = extract(epi_data)
         net.zero_hidden()
 
-        delta = net.forward(x)
-        loss = loss_function(delta, y)
+        newstate = net.forward(x)
+        loss = loss_function(newstate, y)
 
         loss_total.append(loss.clone().cpu().data.numpy()[0])
-        diff_total.append(F.mse_loss(x[:, :, :12], x[:, :, :12] + y).clone().cpu().data.numpy()[0])
+        diff_total.append(F.mse_loss(x[:, :, :12], y).clone().cpu().data.numpy()[0])
 
 
     if hyperdash_support:
