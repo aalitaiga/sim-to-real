@@ -20,7 +20,11 @@ cycol = cycle('bgrcmk')
 ds = DatasetProduction()
 ds.load("~/data/sim2real/data-realigned-v3-{}-bullet.npz".format("train"))
 
-epi = np.random.randint(0, len(ds.current_real))
+# epi = np.random.randint(0, len(ds.current_real))
+#
+# print("epi:",epi)
+
+epi = 91
 
 joints_sim = np.zeros((299, 6), np.float32)
 joints_real = np.zeros((299, 6), np.float32)
@@ -35,7 +39,7 @@ net.load_state_dict(checkpoint['state_dict'])
 net.eval()
 
 modelFile = "../trained_models/lstm_real_nosim_vX4_exp1_l3_n128.pt"
-net2 = LstmNetRealv3(nodes=128, layers=3,n_input_state_sim=0)
+net2 = LstmNetRealv3(nodes=128, layers=3, n_input_state_sim=0)
 full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), modelFile)
 checkpoint = torch.load(full_path, map_location="cpu")
 net2.load_state_dict(checkpoint['state_dict'])
@@ -57,11 +61,13 @@ def data_to_var(sim_t2, real_t1, action):
              torch.from_numpy(real_t1).float(),
              torch.from_numpy(action).float()], dim=0)), volatile=True)
 
+
 def data_to_var_nosim(real_t1, action):
     return Variable(
         double_unsqueeze(torch.cat(
             [torch.from_numpy(real_t1).float(),
              torch.from_numpy(action).float()], dim=0)), volatile=True)
+
 
 #### SIM
 
@@ -94,7 +100,7 @@ for frame in range(299):
     obs = robot.observe()
     variable = data_to_var(obs, old_state, ds.action[epi, frame])
     delta = double_squeeze(net.forward(variable))
-    new_state = obs + 0.7*delta
+    new_state = obs + 0.7 * delta
     robot.set(new_state)
 
     joints_simplus[frame, :] = new_state[:6]
@@ -110,46 +116,58 @@ for frame in range(299):
     joints_nosim[frame, :] = new_state[:6]
     old_state = new_state
 
+np.savez("../results/joint-data.npz",
+         joints_sim=joints_sim,
+         joints_real=joints_real,
+         joints_simplus=joints_simplus,
+         joints_nosim=joints_nosim,
+         actions=ds.action[epi, :, 4]
+         )
 
+import matplotlib
+print (matplotlib.rcParams)
 
 for i in range(6):
+    print(i)
     c = next(cycol)
     plt.plot(
         np.arange(0, 299),
         joints_real[:, i],
-        c="red",
-        label="real"
+        # c="red",
+        label="Real Robot"
 
     )
     plt.plot(
         np.arange(0, 299),
         joints_sim[:, i],
-        c="green",
+        # c="magenta",
         dashes=[2, 1],
-        label="sim"
+        label="Simulation"
     )
     plt.plot(
         np.arange(0, 299),
         ds.action[epi, :, i],
-        c="blue",
+        # c="blue",
         dashes=[1, 1],
-        label="action"
+        label="Motor Command"
     )
     plt.plot(
         np.arange(0, 299),
         joints_nosim[:, i],
-        c="magenta",
+        # c="green",
         dashes=[5, 1],
-        label="nosim"
+        label="Forward Model w/o Simulation"
     )
     plt.plot(
         np.arange(0, 299),
         joints_simplus[:, i],
-        c="black",
+        # c="black",
         dashes=[1, 4],
-        label="simplus"
+        label="Adapted Simulation"
     )
     plt.legend()
     plt.ylim(-1.25, 1.25)
-
+    plt.xlabel("time step")
+    plt.ylabel("joint position")
+    plt.title("Single Joint Comparison of Position Estimates")
     plt.show()
