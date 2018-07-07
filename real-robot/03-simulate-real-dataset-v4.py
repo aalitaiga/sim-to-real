@@ -16,6 +16,7 @@ for run in ["train", "test"]:
     for epi in tqdm(range(len(ds.current_real))):
         for frame in range(len(ds.current_real[0])):
             robot.set(ds.current_real[epi, frame, :])
+            robot.step()
             # print(robot.observe().round(2))
             robot.act2(ds.action[epi, frame, :])
 
@@ -24,7 +25,7 @@ for run in ["train", "test"]:
             obs = robot.observe()
             ds.next_sim[epi, frame, :] = obs
 
-    ds.save("~/data/sim2real/data-realigned-v3-{}-bullet.npz".format(run))
+    ds.save("~/data/sim2real/data-realigned-v4-{}-bullet.npz".format(run))
 
     print("ds.next_sim.max()",ds.next_sim.max())
     print("ds.next_sim.min()",ds.next_sim.min())

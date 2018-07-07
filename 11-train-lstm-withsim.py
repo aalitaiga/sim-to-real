@@ -76,6 +76,7 @@ for epoch in range(EPOCHS):
         net.hidden[0].detach_()  # !important
         net.hidden[1].detach_()  # !important
         net.zero_grad()
+        optimizer.zero_grad()
 
         robot.set(ds.current_real[epi, 0])
         robot.act2(ds.current_real[epi, 0, :6])
