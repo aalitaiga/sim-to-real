@@ -82,6 +82,8 @@ for epoch in range(EPOCHS):
         robot.step()
 
         losses = Variable(torch.zeros(1))
+        if torch.cuda.is_available():
+            losses = losses.cuda()
         diffs = 0
 
         for frame in range(len(ds.current_real[0])):
