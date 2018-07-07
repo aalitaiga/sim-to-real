@@ -44,12 +44,12 @@ modelFile = "../gaussian-process/models/gp2_1000.pkl"
 gp = joblib.load(modelFile)
 
 
-# modelFile = "../trained_models/lstm_real_nosim_vX4_exp1_l3_n128.pt"
-# net2 = LstmNetRealv3(nodes=128, layers=3, n_input_state_sim=0)
-# full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), modelFile)
-# checkpoint = torch.load(full_path, map_location="cpu")
-# net2.load_state_dict(checkpoint['state_dict'])
-# net2.eval()
+modelFile = "../trained_models/lstm_real_nosim_vX4_exp1_l3_n128.pt"
+net2 = LstmNetRealv3(nodes=128, layers=3, n_input_state_sim=0, cuda=False)
+full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), modelFile)
+checkpoint = torch.load(full_path, map_location="cpu")
+net2.load_state_dict(checkpoint['state_dict'])
+net2.eval()
 
 
 def double_unsqueeze(data):
@@ -115,12 +115,12 @@ robot.close()
 
 #### SIM+2
 
-# old_state = ds.current_real[epi, 0]
-# for frame in range(299):
-#     variable = data_to_var_nosim(old_state, ds.action[epi, frame])
-#     new_state = old_state + double_squeeze(net2.forward(variable))
-#     joints_nosim[frame, :] = new_state[:6]
-#     old_state = new_state
+old_state = ds.current_real[epi, 0]
+for frame in range(299):
+    variable = data_to_var_nosim(old_state, ds.action[epi, frame])
+    new_state = old_state + double_squeeze(net2.forward(variable))
+    joints_nosim[frame, :] = new_state[:6]
+    old_state = new_state
 
 #### GPR
 
@@ -146,7 +146,7 @@ np.savez("../results/joint-data-afterPaper.npz",
          joints_real=joints_real,
          joints_simplus=joints_simplus,
          joints_gp=joints_gp,
-         # joints_nosim=joints_nosim,
+         joints_nosim=joints_nosim,
          actions=ds.action[epi, :, 4]
          )
 
@@ -178,13 +178,13 @@ for i in range(6):
         dashes=[1, 1],
         label="Motor Command"
     )
-    # plt.plot(
-    #     np.arange(0, 299),
-    #     joints_nosim[:, i],
-    #     # c="green",
-    #     dashes=[5, 1],
-    #     label="Forward Model w/o Simulation"
-    # )
+    plt.plot(
+        np.arange(0, 299),
+        joints_nosim[:, i],
+        # c="green",
+        dashes=[5, 1],
+        label="Forward Model w/o Simulation"
+    )
     plt.plot(
         np.arange(0, 299),
         joints_simplus[:, i],
