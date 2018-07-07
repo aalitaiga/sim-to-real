@@ -14,13 +14,14 @@ from torch.autograd import Variable
 
 from simple_joints_lstm.lstm_net_real_v3 import LstmNetRealv3
 from simple_joints_lstm.lstm_net_real_v4 import LstmNetRealv4
+from sklearn.externals import joblib
 
 cycol = cycle('bgrcmk')
 
 ds = DatasetProduction()
 ds.load("~/data/sim2real/data-realigned-v3-{}-bullet.npz".format("train"))
 
-# epi = np.random.randint(0, len(ds.current_real))
+epi = np.random.randint(0, len(ds.current_real))
 #
 # print("epi:",epi)
 
@@ -30,20 +31,25 @@ joints_sim = np.zeros((299, 6), np.float32)
 joints_real = np.zeros((299, 6), np.float32)
 joints_simplus = np.zeros((299, 6), np.float32)
 joints_nosim = np.zeros((299, 6), np.float32)
+joints_gp = np.zeros((299, 6), np.float32)
 
 modelFile = "../trained_models/lstm_real_vX4_exp1_l3_n128.pt"
-net = LstmNetRealv3(nodes=128, layers=3)
+net = LstmNetRealv3(nodes=128, layers=3, cuda=False)
 full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), modelFile)
 checkpoint = torch.load(full_path, map_location="cpu")
 net.load_state_dict(checkpoint['state_dict'])
 net.eval()
 
-modelFile = "../trained_models/lstm_real_nosim_vX4_exp1_l3_n128.pt"
-net2 = LstmNetRealv3(nodes=128, layers=3, n_input_state_sim=0)
-full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), modelFile)
-checkpoint = torch.load(full_path, map_location="cpu")
-net2.load_state_dict(checkpoint['state_dict'])
-net2.eval()
+modelFile = "../gaussian-process/models/gp2_1000.pkl"
+gp = joblib.load(modelFile)
+
+
+# modelFile = "../trained_models/lstm_real_nosim_vX4_exp1_l3_n128.pt"
+# net2 = LstmNetRealv3(nodes=128, layers=3, n_input_state_sim=0)
+# full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), modelFile)
+# checkpoint = torch.load(full_path, map_location="cpu")
+# net2.load_state_dict(checkpoint['state_dict'])
+# net2.eval()
 
 
 def double_unsqueeze(data):
@@ -109,23 +115,44 @@ robot.close()
 
 #### SIM+2
 
-old_state = ds.current_real[epi, 0]
-for frame in range(299):
-    variable = data_to_var_nosim(old_state, ds.action[epi, frame])
-    new_state = old_state + double_squeeze(net2.forward(variable))
-    joints_nosim[frame, :] = new_state[:6]
-    old_state = new_state
+# old_state = ds.current_real[epi, 0]
+# for frame in range(299):
+#     variable = data_to_var_nosim(old_state, ds.action[epi, frame])
+#     new_state = old_state + double_squeeze(net2.forward(variable))
+#     joints_nosim[frame, :] = new_state[:6]
+#     old_state = new_state
 
-np.savez("../results/joint-data.npz",
+#### GPR
+
+robot = SingleRobot(debug=False)
+robot.set(ds.current_real[epi, 0])
+robot.act2(ds.current_real[epi, 0, :6])
+robot.step()
+for frame in range(299):
+    old_state = robot.observe()
+    robot.act2(ds.action[epi, frame])
+    robot.step()
+    obs = robot.observe()
+    variable = np.expand_dims(np.hstack((obs, old_state, ds.action[epi, frame])), axis=0)
+    delta = gp.predict(variable)[0]
+    new_state = obs + delta
+    robot.set(new_state)
+    joints_gp[frame, :] = new_state[:6]
+
+robot.close()
+
+np.savez("../results/joint-data-afterPaper.npz",
          joints_sim=joints_sim,
          joints_real=joints_real,
          joints_simplus=joints_simplus,
-         joints_nosim=joints_nosim,
+         joints_gp=joints_gp,
+         # joints_nosim=joints_nosim,
          actions=ds.action[epi, :, 4]
          )
 
 import matplotlib
-print (matplotlib.rcParams)
+
+print(matplotlib.rcParams)
 
 for i in range(6):
     print(i)
@@ -151,19 +178,26 @@ for i in range(6):
         dashes=[1, 1],
         label="Motor Command"
     )
-    plt.plot(
-        np.arange(0, 299),
-        joints_nosim[:, i],
-        # c="green",
-        dashes=[5, 1],
-        label="Forward Model w/o Simulation"
-    )
+    # plt.plot(
+    #     np.arange(0, 299),
+    #     joints_nosim[:, i],
+    #     # c="green",
+    #     dashes=[5, 1],
+    #     label="Forward Model w/o Simulation"
+    # )
     plt.plot(
         np.arange(0, 299),
         joints_simplus[:, i],
         # c="black",
         dashes=[1, 4],
-        label="Adapted Simulation"
+        label="LSTM-Adapted Simulation"
+    )
+    plt.plot(
+        np.arange(0, 299),
+        joints_gp[:, i],
+        # c="black",
+        dashes=[5, 1],
+        label="Gaussian Process-Adapted Simulation"
     )
     plt.legend()
     plt.ylim(-1.25, 1.25)

@@ -5,8 +5,10 @@ from .params_pusher import *
 
 
 class LstmNetRealv3(nn.Module):
-    def __init__(self, n_input_state_sim=12, n_input_state_real=12, n_input_actions=6, nodes=128, layers=3):
+    def __init__(self, n_input_state_sim=12, n_input_state_real=12, n_input_actions=6, nodes=128, layers=3, cuda=True):
         super().__init__()
+
+        self.cuda = cuda
 
         self.nodes = nodes
         self.layers = layers
@@ -26,7 +28,7 @@ class LstmNetRealv3(nn.Module):
         h = autograd.Variable(torch.zeros(self.layers, 1, self.nodes))
         c = autograd.Variable(torch.zeros(self.layers, 1, self.nodes))
 
-        if torch.cuda.is_available():
+        if torch.cuda.is_available() and self.cuda:
             h = h.cuda()
             c = c.cuda()
 
