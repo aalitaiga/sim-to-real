@@ -6,6 +6,7 @@ from sklearn.metrics import mean_squared_error
 
 
 TEST_SAMPLES = 1000
+SAMPLES = 1000
 
 # SAMPLES = 2000
 # mse train: 0.00010760481106133677

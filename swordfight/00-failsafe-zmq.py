@@ -1,6 +1,6 @@
 import time
 
-from poppy_helpers.controller import SwordFightController, SwordFightZMQController
+from poppy_helpers.controller import SwordFightZMQController
 
 controller_def = SwordFightZMQController(mode="def", host="flogo4.local")
 controller_att = SwordFightZMQController(mode="att", host="flogo2.local")
