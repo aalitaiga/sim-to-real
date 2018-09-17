@@ -8,10 +8,10 @@ from tqdm import tqdm
 
 from simple_joints_lstm.dataset_ergoreachersimple_v2 import DatasetErgoreachersimpleV2
 
-HIDDEN_CELLS = 40
-EPISODES = 20
+HIDDEN_CELLS = 100
+EPISODES = 30
 BATCH_SIZE = 32
-EXPERIMENT = 3
+EXPERIMENT = 6
 
 # exp 2, 20 cells
 # | test loss:   3.432147 |
@@ -20,6 +20,10 @@ EXPERIMENT = 3
 # exp 3, 40 cells
 # | test loss:   2.433643 |
 # | test diff:  65.292154 |
+
+# exp 4, 50 cells
+# | test loss:  29.001207 |
+# | test diff: 204.955687 |
 
 PATH = "../trained_models/lstm_ers_v3_exp{}_l{}_n{}.pt".format(
     EXPERIMENT,
