@@ -6,7 +6,7 @@ from torch import nn, optim, Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from simple_joints_lstm.dataset_ergoreachersimple_v1 import DatasetErgoreachersimpleV1
+from simple_joints_lstm.dataset_ergoreachersimple_v2 import DatasetErgoreachersimpleV2
 
 HIDDEN_CELLS = 40
 EPISODES = 20
@@ -21,14 +21,14 @@ EXPERIMENT = 3
 # | test loss:   2.433643 |
 # | test diff:  65.292154 |
 
-PATH = "../trained_models/lstm_ers_v2_exp{}_l{}_n{}.pt".format(
+PATH = "../trained_models/lstm_ers_v3_exp{}_l{}_n{}.pt".format(
     EXPERIMENT,
     3,
     HIDDEN_CELLS
 )
 
-dataset_train = DatasetErgoreachersimpleV1(train=True)
-dataset_test = DatasetErgoreachersimpleV1(train=False)
+dataset_train = DatasetErgoreachersimpleV2(train=True)
+dataset_test = DatasetErgoreachersimpleV2(train=False)
 
 dataloader_train = DataLoader(dataset_train, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 dataloader_test = DataLoader(dataset_test, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)

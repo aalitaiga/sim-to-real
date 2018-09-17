@@ -28,12 +28,10 @@ from tqdm import tqdm
 MAX_EPISODES = 1000
 EPISODE_LEN = 100
 ACTION_STEPS = 1  # must be >= 1
-OUTPUT_FILE = "~/data/sim2real/data-ergoreachersimple-v1.npz"
-
-# IMPORTANT - DONT USE THIS FILE - BULLET HAS SHARED MEMORY - BOTH ENVS WILL SHARE THE SAME ROBOT
+OUTPUT_FILE = "~/data/sim2real/data-ergoreachersimple-v2.npz"
 
 env_real = gym.make("ErgoReacher-Headless-Simple-Backlash-v1")
-env_sim = gym.make("ErgoReacher-Headless-Simple-v1")
+# env_sim = gym.make("ErgoReacher-Headless-Simple-v1")
 
 data_current_real = np.zeros((MAX_EPISODES, EPISODE_LEN, 8), dtype=np.float32)
 data_next_real = np.zeros((MAX_EPISODES, EPISODE_LEN, 8), dtype=np.float32)
@@ -52,8 +50,6 @@ def dump(state_current_real, state_next_real, state_next_sim, actions):
 
 for episode in tqdm(range(MAX_EPISODES)):
     obs_real_old = env_real.reset()
-    env_sim.reset()
-    env_sim.unwrapped._set_state(env_real.unwrapped._get_state())
 
     action = np.random.uniform(-1, +1, 4)
     action_step = 0
@@ -64,14 +60,10 @@ for episode in tqdm(range(MAX_EPISODES)):
             action_step = 0
 
         obs_real, _, _, _ = env_real.step(action)
-        obs_sim, _, _, _ = env_sim.step(action)
 
         data_action[episode, frame, :] = action.copy()
         data_current_real[episode, frame, :] = obs_real_old[:8].copy()
         data_next_real[episode, frame, :] = obs_real[:8].copy()
-        data_next_sim[episode, frame, :] = obs_sim[:8].copy()
-
-        env_sim.unwrapped._set_state(env_real.unwrapped._get_state())
 
         obs_real_old = obs_real.copy()
 
