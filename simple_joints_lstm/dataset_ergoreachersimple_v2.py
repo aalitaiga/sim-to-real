@@ -5,9 +5,11 @@ import numpy as np
 
 
 class DatasetErgoreachersimpleV2(Dataset):
-    def __init__(self, path="~/data/sim2real/data-ergoreachersimple-v2.npz", train=True):
+    def __init__(self, path="~/data/sim2real/data-ergoreachersimple-v2.npz", train=True, nosim=False):
         super().__init__()
         ds = np.load(os.path.expanduser(path))
+
+        self.nosim = nosim
 
         self.curr_real = ds["state_current_real"]
         self.next_real = ds["state_next_real"]
@@ -29,9 +31,14 @@ class DatasetErgoreachersimpleV2(Dataset):
         return len(self.curr_real)
 
     def format_data(self, idx):
+        if not self.nosim:
+            diff = self.next_real[idx] - self.next_sim[idx]
+        else:
+            diff = self.next_real[idx] - self.curr_real[idx]
+
         return (
             np.hstack((self.next_sim[idx], self.curr_real[idx], self.action[idx])),
-            self.next_real[idx] - self.next_sim[idx]
+            diff
         )
 
     def __getitem__(self, idx):
@@ -68,9 +75,9 @@ if __name__ == '__main__':
             max_x = item["x"].max()
         if item["y"].max() > max_y:
             max_y = item["y"].max()
-        if item["x"].min() > min_x:
+        if item["x"].min() < min_x:
             min_x = item["x"].min()
-        if item["y"].min() > min_y:
+        if item["y"].min() < min_y:
             min_y = item["y"].min()
 
     print("min x {}, max x {}\n"

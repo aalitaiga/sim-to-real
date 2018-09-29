@@ -6,36 +6,22 @@ from torch import nn, optim, Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from simple_joints_lstm.dataset_ergoreachersimple_v3 import DatasetErgoreachersimpleV3
+from simple_joints_lstm.dataset_ergoreachersimple_v2 import DatasetErgoreachersimpleV2
 
 HIDDEN_CELLS = 100
 EPISODES = 30
 BATCH_SIZE = 32
-EXPERIMENT = 2
+EXPERIMENT = 1
 
-# exp 2, 20 cells
-# | test loss:   3.432147 |
-# | test diff:  65.292154 |
 
-# exp 3, 40 cells
-# | test loss:   2.433643 |
-# | test diff:  65.292154 |
-
-# exp 4, 50 cells
-# | test loss:  29.001207 |
-# | test diff: 204.955687 |
-
-# v3,ex1 H 50
-# 22
-
-PATH = "../trained_models/lstm_ers_v4_exp{}_l{}_n{}.pt".format(
+PATH = "../trained_models/lstm_ers_ff_v1_exp{}_l{}_n{}.pt".format(
     EXPERIMENT,
     3,
     HIDDEN_CELLS
 )
 
-dataset_train = DatasetErgoreachersimpleV3(train=True)
-dataset_test = DatasetErgoreachersimpleV3(train=False)
+dataset_train = DatasetErgoreachersimpleV2(train=True, nosim=True)
+dataset_test = DatasetErgoreachersimpleV2(train=False, nosim=True)
 
 dataloader_train = DataLoader(dataset_train, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 dataloader_test = DataLoader(dataset_test, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
@@ -44,7 +30,7 @@ dataloader_test = DataLoader(dataset_test, batch_size=BATCH_SIZE, shuffle=False,
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.linear1 = nn.Linear(20, HIDDEN_CELLS)
+        self.linear1 = nn.Linear(12, HIDDEN_CELLS)
         self.lstm1 = nn.LSTMCell(HIDDEN_CELLS, HIDDEN_CELLS)
         self.lstm2 = nn.LSTMCell(HIDDEN_CELLS, HIDDEN_CELLS)
         self.lstm3 = nn.LSTMCell(HIDDEN_CELLS, HIDDEN_CELLS)
@@ -65,9 +51,13 @@ class Net(nn.Module):
         # input shape should be (32 /minibatch, 100 /steps, 20 /features)
 
         outputs = []
+
+        input = input[:,:,8:]
+
         self.zero_hidden(input.size(0))
 
         chunked_in = input.chunk(input.size(1), dim=1) # slice through minibatch
+
 
         for i, input_t in enumerate(chunked_in):
             hidden = self.linear1(input_t).squeeze(1)
@@ -88,7 +78,7 @@ class Net(nn.Module):
         # hidden state must be zeroed via self.zero_hidden(1)
 
         # input shape should be (20 /features)
-        hidden = self.linear1(input_t.view(1,1,20)).squeeze(1)
+        hidden = self.linear1(input_t.view(1,1,12)).squeeze(1)
 
         self.h_t, self.c_t = self.lstm1(hidden, (self.h_t, self.c_t))
         self.h_t2, self.c_t2 = self.lstm2(self.h_t, (self.h_t2, self.c_t2))
@@ -106,7 +96,7 @@ optimizer = optim.Adam(net.parameters())
 
 losses = []
 
-exp = Experiment("[sim2real] lstm-ers v3")
+exp = Experiment("[sim2real] lstm-ers-ff v2")
 exp.param("hidden", HIDDEN_CELLS)
 exp.param("episodes", EPISODES)
 exp.param("batch", BATCH_SIZE)
@@ -145,7 +135,7 @@ for ep in range(EPISODES):
             for batch_idx in range(slice["x"].size(0)):
                 net.zero_hidden(1)
                 for slice_idx in range(slice["x"].size(1)):
-                    out = net.infer(slice["x"][batch_idx, slice_idx])
+                    out = net.infer(slice["x"][batch_idx, slice_idx, 8:])
                     test_losses += ((out.data.numpy() - slice["y"][batch_idx, slice_idx].data.numpy()) ** 2).mean(axis=None)
                     test_diffs += (slice["y"][batch_idx, slice_idx].data.numpy() ** 2).mean(axis=None)
 
